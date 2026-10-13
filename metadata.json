@@ -1,0 +1,6 @@
+{
+  "name": "KetikKilat - Tes Kecepatan Mengetik Indonesia",
+  "description": "Website latihan dan tes kecepatan mengetik Bahasa Indonesia modern dengan mekanisme 10FastFingers, grafik performa aktual, engine tema dinamis, dan efek suara keyboard mekanikal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
