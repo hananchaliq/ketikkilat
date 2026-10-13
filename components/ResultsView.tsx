@@ -1,9 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TestResult } from '@/types/typing';
 import { PerformanceChart } from './PerformanceChart';
-import { RotateCcw, Share2, Check, RefreshCw, History, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  RotateCcw,
+  Share2,
+  Check,
+  RefreshCw,
+  History,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Trophy,
+  Award,
+  Zap,
+  Target,
+  Flame,
+  Wrench,
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { soundManager } from '@/lib/sound';
 
 interface ResultsViewProps {
   result: TestResult;
@@ -13,6 +30,7 @@ interface ResultsViewProps {
   onRestart: () => void;
   onChangeWords: () => void;
   onOpenHistory: () => void;
+  onPracticeMistakes?: (words: string[]) => void;
 }
 
 export function ResultsView({
@@ -23,47 +41,184 @@ export function ResultsView({
   onRestart,
   onChangeWords,
   onOpenHistory,
+  onPracticeMistakes,
 }: ResultsViewProps) {
   const [copied, setCopied] = useState(false);
   const [showMistakes, setShowMistakes] = useState(false);
+  const [displayWpm, setDisplayWpm] = useState(0);
 
   const isNewBest = result.wpm >= personalBest && personalBest > 0;
-  const cpm = result.wpm * 5; // Characters per minute approximation
+  const cpm = result.wpm * 5;
+
+  // Speed tier badge definition
+  const getSpeedTier = (wpm: number) => {
+    if (wpm >= 90) {
+      return {
+        title: 'Kilat Dewa (Grandmaster)',
+        subtitle: 'Kecepatan luar biasa! Jari Anda melesat seperti kilat.',
+        badgeColor: 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.5)]',
+        icon: <Trophy className="h-5 w-5 text-amber-300 animate-spin-once" />,
+      };
+    }
+    if (wpm >= 70) {
+      return {
+        title: 'Rajawali Angkasa (Master)',
+        subtitle: 'Sangat cepat dan konsisten di atas rata-rata nasional!',
+        badgeColor: 'bg-cyan-600 text-white shadow-xs',
+        icon: <Zap className="h-5 w-5 text-cyan-200 animate-bounce" />,
+      };
+    }
+    if (wpm >= 50) {
+      return {
+        title: 'Macan Gesit (Profesional)',
+        subtitle: 'Laju mengetik cepat, produktif, dan siap kerja profesional.',
+        badgeColor: 'bg-emerald-600 text-white shadow-xs',
+        icon: <Award className="h-5 w-5 text-emerald-200" />,
+      };
+    }
+    if (wpm >= 35) {
+      return {
+        title: 'Kuda Lari (Menengah)',
+        subtitle: 'Kecepatan standar yang baik, terus latih konsistensi!',
+        badgeColor: 'bg-blue-600 text-white shadow-xs',
+        icon: <Flame className="h-5 w-5 text-blue-200" />,
+      };
+    }
+    return {
+      title: 'Penyu Tekun (Pemula)',
+      subtitle: 'Awal yang baik! Terus berlatih 10 jari setiap hari.',
+      badgeColor: 'bg-slate-600 text-white shadow-xs',
+      icon: <Target className="h-5 w-5 text-slate-200" />,
+    };
+  };
+
+  const tier = getSpeedTier(result.wpm);
+
+  // Trigger celebratory confetti and fanfare sound on mount
+  useEffect(() => {
+    try {
+      soundManager.playFanfare(0.4);
+
+      if (isNewBest) {
+        // Grand celebration for personal best
+        const end = Date.now() + 1000;
+        const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ec4899'];
+        (function frame() {
+          confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: colors,
+          });
+          confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: colors,
+          });
+          if (Date.now() < end) {
+            requestAnimationFrame(frame);
+          }
+        })();
+      } else {
+        // Standard pleasant celebration pop
+        confetti({
+          particleCount: 45,
+          spread: 60,
+          origin: { y: 0.65 },
+        });
+      }
+    } catch {
+      // Ignore if canvas is unsupported
+    }
+  }, [isNewBest]);
+
+  // Smooth animated count-up for WPM score
+  useEffect(() => {
+    const target = result.wpm;
+    if (target === 0) {
+      setDisplayWpm(0);
+      return;
+    }
+
+    const duration = 750; // ms
+    const startTime = performance.now();
+
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / duration);
+      // Ease out cubic: 1 - (1 - t)^3
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(target * easeProgress);
+      setDisplayWpm(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  }, [result.wpm]);
 
   const handleCopy = () => {
-    const text = `Hasil Tes Mengetik Bahasa Indonesia (KetikKilat / 10FastFingers):
-Kecepatan: ${result.wpm} WPM (${cpm} CPM)
-Keystrokes: ${result.totalKeystrokes} (${result.correctChars} | ${result.incorrectChars})
-Akurasi: ${result.accuracy}%
-Kata Benar: ${result.correctWords}
-Kata Salah: ${result.incorrectWords}
-Durasi: ${result.duration}s`;
+    const text = `⚡ Hasil Tes Mengetik Bahasa Indonesia (KetikKilat):
+🏆 Gelar: ${tier.title}
+🚀 Kecepatan: ${result.wpm} WPM (${cpm} CPM)
+🎯 Akurasi: ${result.accuracy}%
+⌨️ Keystrokes: ${result.totalKeystrokes} (${result.correctChars} benar | ${result.incorrectChars} salah)
+✅ Kata Benar: ${result.correctWords} | ❌ Kata Salah: ${result.incorrectWords}
+⏱️ Durasi: ${result.duration} detik
+Uji kecepatan jari Anda di KetikKilat!`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleStartMistakesPractice = () => {
+    if (onPracticeMistakes && mistakes.length > 0) {
+      const mistypedWords = Array.from(new Set(mistakes.map((m) => m.target)));
+      onPracticeMistakes(mistypedWords);
+    }
+  };
+
   return (
-    <div className="w-full space-y-4">
-      {/* 10FastFingers Classic Result Table Card */}
+    <div className="w-full space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300 select-none">
+      {/* 10FastFingers Classic Result Table Card with Tier Ribbon */}
       <div
-        className="w-full rounded-md border p-4 sm:p-6 transition-colors shadow-2xs"
+        className="w-full rounded-md border p-4 sm:p-6 transition-colors shadow-2xs relative overflow-hidden"
         style={{
           backgroundColor: 'var(--bg-surface)',
           borderColor: 'var(--bg-border)',
         }}
       >
-        <div className="flex items-center justify-between pb-3 border-b mb-3" style={{ borderColor: 'var(--bg-border)' }}>
-          <h2 className="text-lg font-bold text-[var(--text-main)]">
-            Hasil Tes Mengetik
-          </h2>
+        {/* Tier Medal Ribbon Banner */}
+        <div className="flex flex-wrap items-center justify-between pb-3 border-b mb-4 gap-2" style={{ borderColor: 'var(--bg-border)' }}>
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-lg flex items-center justify-center ${tier.badgeColor}`}>
+              {tier.icon}
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-base sm:text-lg font-bold text-[var(--text-main)]">
+                  {tier.title}
+                </h2>
+                <Sparkles className="h-4 w-4 text-amber-500 animate-spin-once" />
+              </div>
+              <p className="text-xs text-[var(--text-muted)]">
+                {tier.subtitle}
+              </p>
+            </div>
+          </div>
+
           {isNewBest && (
             <span
-              className="text-xs font-semibold px-2 py-0.5 rounded text-white"
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full text-white shadow-xs animate-bounce"
               style={{ backgroundColor: 'var(--color-correct)' }}
             >
-              Rekor Pribadi Baru!
+              <Trophy className="h-3.5 w-3.5" />
+              <span>Rekor Pribadi Baru!</span>
             </span>
           )}
         </div>
@@ -71,18 +226,18 @@ Durasi: ${result.duration}s`;
         {/* The Authentic 10FastFingers #result-table */}
         <table className="w-full text-sm font-sans divide-y" style={{ borderColor: 'var(--bg-border)' }}>
           <tbody>
-            {/* Primary Result Row */}
+            {/* Primary Result Row with Animated Count-Up */}
             <tr className="border-b" style={{ borderColor: 'var(--bg-border)' }}>
-              <td className="py-2.5 text-[var(--text-muted)] font-medium">Hasil:</td>
+              <td className="py-2.5 text-[var(--text-muted)] font-medium">Hasil Kecepatan:</td>
               <td className="py-2.5 text-right">
                 <span
-                  className="font-sans text-3xl font-extrabold tracking-tight"
+                  className="font-sans text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums transition-all"
                   style={{ color: 'var(--color-accent)' }}
                 >
-                  {result.wpm} WPM
+                  {displayWpm} WPM
                 </span>
-                <span className="text-xs text-[var(--text-muted)] ml-1 font-normal">
-                  (yaitu: {cpm} CPM)
+                <span className="text-xs text-[var(--text-muted)] ml-1.5 font-normal">
+                  (yaitu: {displayWpm * 5} CPM)
                 </span>
               </td>
             </tr>
@@ -132,11 +287,11 @@ Durasi: ${result.duration}s`;
           </tbody>
         </table>
 
-        {/* 10FastFingers Action Buttons */}
+        {/* 10FastFingers Action Buttons with Lively Hovers */}
         <div className="mt-5 pt-4 border-t flex flex-wrap items-center gap-2" style={{ borderColor: 'var(--bg-border)' }}>
           <button
             onClick={onRestart}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md font-semibold text-xs text-white transition-opacity hover:opacity-90 active:scale-95 cursor-pointer shadow-2xs"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md font-semibold text-xs text-white transition-all hover:opacity-90 active:scale-95 cursor-pointer shadow-2xs hover:shadow-xs"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
             <RotateCcw className="h-4 w-4" />
@@ -145,7 +300,7 @@ Durasi: ${result.duration}s`;
 
           <button
             onClick={onChangeWords}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md font-medium text-xs border transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md font-medium text-xs border transition-all hover:bg-[var(--bg-app)] active:scale-95 cursor-pointer"
             style={{
               borderColor: 'var(--bg-border)',
               color: 'var(--text-main)',
@@ -155,9 +310,20 @@ Durasi: ${result.duration}s`;
             <span>Ganti Kumpulan Kata</span>
           </button>
 
+          {mistakes.length > 0 && onPracticeMistakes && (
+            <button
+              onClick={handleStartMistakesPractice}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md font-medium text-xs border border-amber-400/60 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 transition-all hover:bg-amber-100 dark:hover:bg-amber-950/70 active:scale-95 cursor-pointer"
+              title="Latih hanya kata-kata yang salah diketik"
+            >
+              <Wrench className="h-3.5 w-3.5 text-amber-600" />
+              <span>Latih Kata Typo ({mistakes.length})</span>
+            </button>
+          )}
+
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md font-medium text-xs border transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md font-medium text-xs border transition-all hover:bg-[var(--bg-app)] active:scale-95 cursor-pointer"
             style={{
               borderColor: 'var(--bg-border)',
               color: 'var(--text-main)',
@@ -178,7 +344,7 @@ Durasi: ${result.duration}s`;
 
           <button
             onClick={onOpenHistory}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md font-medium text-xs border transition-colors hover:bg-[var(--bg-app)] cursor-pointer ml-auto"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md font-medium text-xs border transition-all hover:bg-[var(--bg-app)] active:scale-95 cursor-pointer ml-auto"
             style={{
               borderColor: 'var(--bg-border)',
               color: 'var(--text-main)',
@@ -190,7 +356,7 @@ Durasi: ${result.duration}s`;
         </div>
       </div>
 
-      {/* Mistakes review if any */}
+      {/* Mistakes review if any with smooth reveal */}
       {mistakes.length > 0 && (
         <div
           className="w-full rounded-md border p-3 transition-colors text-xs"
@@ -203,7 +369,12 @@ Durasi: ${result.duration}s`;
             onClick={() => setShowMistakes(!showMistakes)}
             className="w-full flex items-center justify-between text-left font-medium text-[var(--text-main)] cursor-pointer"
           >
-            <span>Daftar Kesalahan Kata ({mistakes.length})</span>
+            <div className="flex items-center gap-1.5">
+              <span>Daftar Kesalahan Kata ({mistakes.length})</span>
+              <span className="text-[10px] text-[var(--text-muted)] font-normal">
+                (Klik untuk melihat perbandingan)
+              </span>
+            </div>
             {showMistakes ? (
               <ChevronUp className="h-3.5 w-3.5 text-[var(--text-muted)]" />
             ) : (
@@ -212,18 +383,18 @@ Durasi: ${result.duration}s`;
           </button>
 
           {showMistakes && (
-            <div className="mt-2 pt-2 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--bg-border)' }}>
+            <div className="mt-2.5 pt-2 border-t flex flex-wrap gap-2 animate-in fade-in duration-200" style={{ borderColor: 'var(--bg-border)' }}>
               {mistakes.map((m, idx) => (
                 <div
                   key={idx}
-                  className="px-2 py-1 rounded border text-[11px] font-sans"
+                  className="px-2.5 py-1 rounded border text-[11px] font-sans hover:scale-105 transition-transform flex items-center gap-1"
                   style={{
                     backgroundColor: 'var(--bg-app)',
                     borderColor: 'var(--bg-border)',
                   }}
                 >
                   <span className="text-green-700 dark:text-green-400 font-medium">{m.target}</span>
-                  <span className="text-[var(--text-muted)] mx-1">→</span>
+                  <span className="text-[var(--text-muted)] mx-0.5">→</span>
                   <span className="text-red-600 dark:text-red-400 line-through">
                     {m.typed || '(kosong)'}
                   </span>
@@ -234,7 +405,7 @@ Durasi: ${result.duration}s`;
         </div>
       )}
 
-      {/* Integrated Performance Line Chart */}
+      {/* Integrated Performance Line Chart with Animated Wave */}
       <PerformanceChart
         data={result.historyPoints}
         averageWpm={result.wpm}

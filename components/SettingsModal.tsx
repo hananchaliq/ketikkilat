@@ -367,39 +367,72 @@ export function SettingsModal({
             </div>
 
             {settings.soundEnabled && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                    Volume Suara
-                  </span>
-                  <span className="font-mono text-xs font-bold text-[var(--color-accent)]">
-                    {settings.soundVolume}%
-                  </span>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                      Volume Suara
+                    </span>
+                    <span className="font-mono text-xs font-bold text-[var(--color-accent)]">
+                      {settings.soundVolume}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.soundVolume}
+                    onChange={(e) => onUpdateSettings({ ...settings, soundVolume: parseInt(e.target.value, 10) })}
+                    className="w-full accent-[var(--color-accent)] cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.soundVolume}
-                  onChange={(e) => onUpdateSettings({ ...settings, soundVolume: parseInt(e.target.value, 10) })}
-                  className="w-full accent-[var(--color-accent)] cursor-pointer"
-                />
+
+                {/* Sound Profile Selector */}
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-2">
+                    Pilihan Karakter Suara Tuts
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'mechanical', name: 'Cherry Blue (Klik)', desc: 'Klik tajam & renyah' },
+                      { id: 'thock', name: 'Gateron Thock (Bass)', desc: 'Suara dalam mantap' },
+                      { id: 'typewriter', name: 'Mesin Tik Vintage', desc: 'Sentuhan klasik logam' },
+                      { id: 'bubble', name: 'Bubble Pop', desc: 'Pop gelembung santai' },
+                    ].map((prof) => (
+                      <button
+                        key={prof.id}
+                        onClick={() => {
+                          onUpdateSettings({ ...settings, soundProfile: prof.id as any });
+                          soundManager.playKey(settings.soundVolume / 100, prof.id as any);
+                        }}
+                        className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                          (settings.soundProfile || 'mechanical') === prof.id
+                            ? 'border-[var(--color-accent)] bg-[var(--bg-app)] text-[var(--color-accent)] font-semibold shadow-2xs'
+                            : 'border-[var(--bg-border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                        }`}
+                      >
+                        <div className="font-semibold text-xs text-[var(--text-main)]">{prof.name}</div>
+                        <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{prof.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Test Sound Samples */}
-                <div className="mt-4">
+                <div className="mt-2">
                   <div className="text-xs text-[var(--text-muted)] mb-2 font-medium">Uji Coba Suara:</div>
                   <div className="grid grid-cols-3 gap-2">
                     <button
-                      onClick={testKeySound}
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium hover:bg-[var(--bg-app)] transition-colors"
+                      onClick={() => soundManager.playKey(settings.soundVolume / 100, settings.soundProfile || 'mechanical')}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium hover:bg-[var(--bg-app)] transition-colors cursor-pointer"
                       style={{ borderColor: 'var(--bg-border)' }}
                     >
                       <Play className="h-3 w-3 text-[var(--color-accent)]" />
                       <span>Tuts Standar</span>
                     </button>
                     <button
-                      onClick={testSpaceSound}
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium hover:bg-[var(--bg-app)] transition-colors"
+                      onClick={() => soundManager.playSpace(settings.soundVolume / 100, settings.soundProfile || 'mechanical')}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium hover:bg-[var(--bg-app)] transition-colors cursor-pointer"
                       style={{ borderColor: 'var(--bg-border)' }}
                     >
                       <Play className="h-3 w-3 text-[var(--color-accent)]" />
@@ -407,7 +440,7 @@ export function SettingsModal({
                     </button>
                     <button
                       onClick={testFinishSound}
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium hover:bg-[var(--bg-app)] transition-colors"
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium hover:bg-[var(--bg-app)] transition-colors cursor-pointer"
                       style={{ borderColor: 'var(--bg-border)' }}
                     >
                       <Play className="h-3 w-3 text-[var(--color-correct)]" />

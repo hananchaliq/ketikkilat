@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useEffect } from 'react';
 import { PerformanceDataPoint } from '@/types/typing';
+import { Play, Pause, RotateCcw, Activity } from 'lucide-react';
 
 interface PerformanceChartProps {
   data: PerformanceDataPoint[];
@@ -11,6 +12,10 @@ interface PerformanceChartProps {
 
 export function PerformanceChart({ data, averageWpm, duration }: PerformanceChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [activeMetric, setActiveMetric] = useState<'wpm' | 'accuracy'>('wpm');
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [replayIndex, setReplayIndex] = useState(0);
+
   const chartId = useId();
 
   const chartData =
@@ -41,13 +46,19 @@ export function PerformanceChart({ data, averageWpm, duration }: PerformanceChar
     return paddingLeft + (second / maxSec) * innerWidth;
   };
 
-  const getY = (wpm: number) => {
-    return paddingTop + innerHeight - (Math.max(0, wpm) / maxWpm) * innerHeight;
+  const getY = (val: number, isAcc = false) => {
+    if (isAcc) {
+      return paddingTop + innerHeight - (Math.max(0, val) / 100) * innerHeight;
+    }
+    return paddingTop + innerHeight - (Math.max(0, val) / maxWpm) * innerHeight;
   };
 
   const points = chartData.map((d) => ({
     x: getX(d.second),
-    y: getY(d.wpm),
+    y: activeMetric === 'wpm' ? getY(d.wpm) : getY(d.accuracy, true),
+    wpm: d.wpm,
+    accuracy: d.accuracy,
+    second: d.second,
   }));
 
   // Build smooth cubic bezier curve through points
@@ -84,11 +95,42 @@ export function PerformanceChart({ data, averageWpm, duration }: PerformanceChar
       : '';
 
   const avgY = getY(averageWpm);
-  const yTicks = [0, Math.round(maxWpm * 0.5), maxWpm];
-  const hoveredPoint = hoverIndex !== null ? chartData[hoverIndex] : null;
+  const yTicks =
+    activeMetric === 'wpm'
+      ? [0, Math.round(maxWpm * 0.5), maxWpm]
+      : [0, 50, 100];
+
+  const activeIndex = hoverIndex !== null ? hoverIndex : isReplaying ? replayIndex : null;
+  const hoveredPoint = activeIndex !== null ? chartData[activeIndex] : null;
 
   // Find peak point
   const peakWpm = Math.max(...chartData.map((d) => d.wpm));
+
+  // Replay Simulator timer loop
+  useEffect(() => {
+    if (!isReplaying) return;
+    const interval = setInterval(() => {
+      setReplayIndex((prev) => {
+        if (prev >= chartData.length - 1) {
+          setIsReplaying(false);
+          return chartData.length - 1;
+        }
+        return prev + 1;
+      });
+    }, 180);
+    return () => clearInterval(interval);
+  }, [isReplaying, chartData.length]);
+
+  const toggleReplay = () => {
+    if (isReplaying) {
+      setIsReplaying(false);
+    } else {
+      if (replayIndex >= chartData.length - 1) {
+        setReplayIndex(0);
+      }
+      setIsReplaying(true);
+    }
+  };
 
   return (
     <div
@@ -98,34 +140,85 @@ export function PerformanceChart({ data, averageWpm, duration }: PerformanceChar
         borderColor: 'var(--bg-border)',
       }}
     >
-      <div className="flex items-center justify-between mb-3 text-xs font-semibold text-[var(--text-main)]">
+      {/* Chart Header with Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 text-xs font-semibold text-[var(--text-main)]">
         <div className="flex items-center gap-2">
-          <span>Grafik Kecepatan Sesi (Fluktuasi WPM Naik-Turun)</span>
+          <span>Grafik Performa Sesi</span>
           <span className="text-[10px] text-[var(--text-muted)] font-normal">
-            (Puncak: {peakWpm} WPM)
+            (Puncak: {peakWpm} WPM · Rata-rata: {averageWpm} WPM)
           </span>
         </div>
-        <span className="font-mono text-[var(--text-muted)] font-normal text-[11px]">
-          Rata-rata: {averageWpm} WPM
-        </span>
+
+        <div className="flex items-center gap-1.5">
+          {/* Replay Simulation button */}
+          <button
+            onClick={toggleReplay}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border border-[var(--bg-border)] bg-[var(--bg-app)] hover:text-[var(--text-main)] text-[var(--text-muted)] transition-colors cursor-pointer"
+            title="Putar ulang simulasi laju detik demi detik"
+          >
+            {isReplaying ? (
+              <>
+                <Pause className="h-3 w-3 text-amber-500" />
+                <span>Jeda Replay</span>
+              </>
+            ) : (
+              <>
+                <Play className="h-3 w-3 text-[var(--color-accent)]" />
+                <span>{replayIndex > 0 && replayIndex < chartData.length - 1 ? 'Lanjut Replay' : 'Putar Replay'}</span>
+              </>
+            )}
+          </button>
+
+          {/* Metric toggle pills */}
+          <div className="flex items-center rounded border border-[var(--bg-border)] overflow-hidden text-[10px]">
+            <button
+              onClick={() => setActiveMetric('wpm')}
+              className={`px-2 py-0.5 font-medium transition-colors cursor-pointer ${
+                activeMetric === 'wpm'
+                  ? 'bg-[var(--color-accent)] text-white font-bold'
+                  : 'bg-[var(--bg-app)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              WPM
+            </button>
+            <button
+              onClick={() => setActiveMetric('accuracy')}
+              className={`px-2 py-0.5 font-medium transition-colors cursor-pointer ${
+                activeMetric === 'accuracy'
+                  ? 'bg-green-600 text-white font-bold'
+                  : 'bg-[var(--bg-app)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Akurasi %
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="relative w-full">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-auto overflow-visible"
+          className="w-full h-auto overflow-visible cursor-crosshair"
           onMouseLeave={() => setHoverIndex(null)}
         >
           <defs>
             <linearGradient id={`chart-grad-${chartId}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--color-chart)" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="var(--color-chart)" stopOpacity="0.0" />
+              <stop
+                offset="0%"
+                stopColor={activeMetric === 'wpm' ? 'var(--color-chart)' : '#10b981'}
+                stopOpacity="0.25"
+              />
+              <stop
+                offset="100%"
+                stopColor={activeMetric === 'wpm' ? 'var(--color-chart)' : '#10b981'}
+                stopOpacity="0.0"
+              />
             </linearGradient>
           </defs>
 
           {/* Grid lines */}
           {yTicks.map((tick, i) => {
-            const y = getY(tick);
+            const y = getY(tick, activeMetric === 'accuracy');
             return (
               <g key={`tick-${i}`}>
                 <line
@@ -152,27 +245,31 @@ export function PerformanceChart({ data, averageWpm, duration }: PerformanceChar
             );
           })}
 
-          {/* Average WPM reference dashed line */}
-          <line
-            x1={paddingLeft}
-            y1={avgY}
-            x2={width - paddingRight}
-            y2={avgY}
-            stroke="var(--text-muted)"
-            strokeDasharray="4 4"
-            strokeWidth="1.2"
-            opacity="0.85"
-          />
-          <text
-            x={width - paddingRight - 4}
-            y={avgY - 4}
-            textAnchor="end"
-            fontSize="9"
-            fill="var(--text-muted)"
-            fontFamily="sans-serif"
-          >
-            Rata-rata: {averageWpm} WPM
-          </text>
+          {/* Average WPM reference dashed line (only in WPM mode) */}
+          {activeMetric === 'wpm' && (
+            <>
+              <line
+                x1={paddingLeft}
+                y1={avgY}
+                x2={width - paddingRight}
+                y2={avgY}
+                stroke="var(--text-muted)"
+                strokeDasharray="4 4"
+                strokeWidth="1.2"
+                opacity="0.85"
+              />
+              <text
+                x={width - paddingRight - 4}
+                y={avgY - 4}
+                textAnchor="end"
+                fontSize="9"
+                fill="var(--text-muted)"
+                fontFamily="sans-serif"
+              >
+                Rata-rata: {averageWpm} WPM
+              </text>
+            </>
+          )}
 
           {/* Area fill */}
           <path d={areaD} fill={`url(#chart-grad-${chartId})`} />
@@ -181,7 +278,7 @@ export function PerformanceChart({ data, averageWpm, duration }: PerformanceChar
           <path
             d={smoothPathD}
             fill="none"
-            stroke="var(--color-chart)"
+            stroke={activeMetric === 'wpm' ? 'var(--color-chart)' : '#10b981'}
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -198,13 +295,21 @@ export function PerformanceChart({ data, averageWpm, duration }: PerformanceChar
               <circle
                 cx={p.x}
                 cy={p.y}
-                r={hoverIndex === idx ? 4.5 : 2}
-                fill={hoverIndex === idx ? 'var(--bg-surface)' : 'var(--color-chart)'}
-                stroke="var(--color-chart)"
-                strokeWidth={hoverIndex === idx ? 2 : 1}
+                r={activeIndex === idx ? 5 : 2}
+                fill={activeIndex === idx ? 'var(--bg-surface)' : activeMetric === 'wpm' ? 'var(--color-chart)' : '#10b981'}
+                stroke={activeMetric === 'wpm' ? 'var(--color-chart)' : '#10b981'}
+                strokeWidth={activeIndex === idx ? 2.5 : 1}
               />
             </g>
           ))}
+
+          {/* Replaying Runner Dot / Indicator */}
+          {isReplaying && points[replayIndex] && (
+            <g transform={`translate(${points[replayIndex].x}, ${points[replayIndex].y})`}>
+              <circle r="7" fill="var(--color-accent)" opacity="0.4" className="animate-ping" />
+              <circle r="4.5" fill="var(--color-accent)" stroke="#ffffff" strokeWidth="2" />
+            </g>
+          )}
 
           {/* Baseline */}
           <line
@@ -233,7 +338,7 @@ export function PerformanceChart({ data, averageWpm, duration }: PerformanceChar
             fontSize="9"
             fill="var(--text-muted)"
           >
-            Waktu (detik)
+            Waktu Tes (detik)
           </text>
           <text
             x={width - paddingRight}
@@ -246,23 +351,24 @@ export function PerformanceChart({ data, averageWpm, duration }: PerformanceChar
           </text>
         </svg>
 
-        {/* Hover Tooltip */}
-        {hoveredPoint && hoverIndex !== null && (
+        {/* Hover / Replay Floating Tooltip */}
+        {hoveredPoint && activeIndex !== null && points[activeIndex] && (
           <div
-            className="absolute pointer-events-none transform -translate-x-1/2 -translate-y-full rounded border px-2.5 py-1.5 shadow-md text-xs font-sans transition-all"
+            className="absolute pointer-events-none transform -translate-x-1/2 -translate-y-full rounded border px-2.5 py-1.5 shadow-md text-xs font-sans transition-all z-10"
             style={{
-              left: `${(points[hoverIndex].x / width) * 100}%`,
-              top: `${Math.max(4, (points[hoverIndex].y / height) * 100 - 8)}%`,
+              left: `${(points[activeIndex].x / width) * 100}%`,
+              top: `${Math.max(4, (points[activeIndex].y / height) * 100 - 8)}%`,
               backgroundColor: 'var(--bg-surface)',
               borderColor: 'var(--bg-border)',
               color: 'var(--text-main)',
             }}
           >
-            <div className="font-bold text-[var(--color-accent)]">
-              {hoveredPoint.wpm} WPM
+            <div className="font-bold flex items-center gap-1" style={{ color: activeMetric === 'wpm' ? 'var(--color-accent)' : '#10b981' }}>
+              <Activity className="h-3 w-3" />
+              <span>{hoveredPoint.wpm} WPM ({hoveredPoint.accuracy}% akurat)</span>
             </div>
             <div className="text-[10px] text-[var(--text-muted)]">
-              Detik ke-{hoveredPoint.second} · {hoveredPoint.accuracy}% akurasi
+              Detik ke-{hoveredPoint.second} · {hoveredPoint.rawWpm} Raw WPM
             </div>
           </div>
         )}

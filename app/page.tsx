@@ -9,6 +9,7 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { ThemeModal } from '@/components/ThemeModal';
 import { HistoryModal } from '@/components/HistoryModal';
 import { GuideModal } from '@/components/GuideModal';
+import { KeyboardVisualizer } from '@/components/KeyboardVisualizer';
 import { generateWordList } from '@/lib/words';
 import { soundManager } from '@/lib/sound';
 import {
@@ -63,6 +64,8 @@ export default function TypingApp() {
   const [currentInput, setCurrentInput] = useState('');
   const [completedWords, setCompletedWords] = useState<WordData[]>([]);
   const [testState, setTestState] = useState<TestState>('idle');
+  const [streak, setStreak] = useState(0);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
 
   // Telemetry & Timing States
   const [timeLeft, setTimeLeft] = useState<number>(() => loadSettings().timeDuration);
@@ -77,78 +80,73 @@ export default function TypingApp() {
   // Results & History
   const [testResult, setTestResult] = useState<TestResult | null>(null);
 
-  // Interval and keystroke delta tracking refs
+  // Interval, timestamp, and authoritative keystroke refs
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const prevSecondKeysRef = useRef(0);
+  const startTimeRef = useRef<number>(0);
+  const testStateRef = useRef<TestState>('idle');
+  const lastSampledSecRef = useRef<number>(0);
+  const prevSecondKeysRef = useRef<number>(0);
   const secondDeltasRef = useRef<number[]>([]);
+
+  // Authoritative metric refs (never stale, updated synchronously)
+  const correctKeystrokesRef = useRef<number>(0);
+  const incorrectKeystrokesRef = useRef<number>(0);
+  const correctWordCountRef = useRef<number>(0);
+  const incorrectWordCountRef = useRef<number>(0);
+  const mistakesRef = useRef<Array<{ target: string; typed: string }>>([]);
+  const wordsRef = useRef<string[]>(words);
+  const currentWordIndexRef = useRef<number>(0);
+  const currentInputRef = useRef<string>('');
+  const performanceHistoryRef = useRef<PerformanceDataPoint[]>([]);
+
+  // Keep wordsRef synced
+  useEffect(() => {
+    wordsRef.current = words;
+  }, [words]);
 
   // Synchronize active theme CSS variables to DOM
   useEffect(() => {
     applyThemeToDom(getActiveTheme(settings));
   }, [settings]);
 
-  // Update theme & save settings when settings change
-  const handleUpdateSettings = (newSettings: UserSettings) => {
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    applyThemeToDom(getActiveTheme(newSettings));
-
-    if (testState === 'idle') {
-      setTimeLeft(newSettings.timeDuration);
-      setWords(generateWordList(newSettings.difficulty, 300));
-    }
-  };
-
-  // Reset / Restart Test
-  const resetTest = useCallback(
-    (newWordsList?: string[]) => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      prevSecondKeysRef.current = 0;
-      secondDeltasRef.current = [];
-      setTestState('idle');
-      setCurrentWordIndex(0);
-      setCurrentInput('');
-      setCompletedWords([]);
-      setTimeLeft(settings.timeDuration);
-      setElapsedSeconds(0);
-      setCorrectKeystrokes(0);
-      setIncorrectKeystrokes(0);
-      setCorrectWordCount(0);
-      setIncorrectWordCount(0);
-      setMistakes([]);
-      setPerformanceHistory([]);
-      setTestResult(null);
-
-      if (newWordsList) {
-        setWords(newWordsList);
-      } else {
-        setWords(generateWordList(settings.difficulty, 300));
-      }
-    },
-    [settings.timeDuration, settings.difficulty]
-  );
-
-  // Finish Test
+  // Finish Test - Reads directly from authoritative refs so results are NEVER zero
   const finishTest = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
+    if (testStateRef.current === 'completed') return;
+    testStateRef.current = 'completed';
     setTestState('completed');
 
-    const durationSec = Math.max(1, elapsedSeconds);
+    // Count any correct and incorrect characters typed in the active input
+    let pendingCorrect = 0;
+    let pendingIncorrect = 0;
+    const currentVal = currentInputRef.current.trim();
+    const target = wordsRef.current[currentWordIndexRef.current] || '';
+    if (currentVal.length > 0) {
+      for (let i = 0; i < currentVal.length; i++) {
+        if (i < target.length && currentVal[i] === target[i]) {
+          pendingCorrect++;
+        } else {
+          pendingIncorrect++;
+        }
+      }
+    }
+
+    const finalCorrect = correctKeystrokesRef.current + pendingCorrect;
+    const finalIncorrect = incorrectKeystrokesRef.current + pendingIncorrect;
+    const totalChars = finalCorrect + finalIncorrect;
+
+    const actualElapsedMs = startTimeRef.current > 0 ? Date.now() - startTimeRef.current : 60000;
+    const durationSec = Math.max(1, Math.round(actualElapsedMs / 1000));
     const durationMin = durationSec / 60;
 
-    // Standard overall average WPM = (correctChars / 5) / minutes
-    const finalWpm = Math.round(correctKeystrokes / 5 / durationMin) || 0;
-    const totalChars = correctKeystrokes + incorrectKeystrokes;
+    // Standard 10FastFingers WPM: (correct keystrokes / 5) / minutes
+    const finalWpm = Math.round(finalCorrect / 5 / durationMin) || 0;
     const rawWpm = Math.round(totalChars / 5 / durationMin) || 0;
-    const finalAccuracy =
-      totalChars > 0 ? Math.round((correctKeystrokes / totalChars) * 100) : 100;
+    const finalAccuracy = totalChars > 0 ? Math.round((finalCorrect / totalChars) * 100) : 100;
 
     const result: TestResult = {
       id: Date.now().toString(),
@@ -162,21 +160,26 @@ export default function TypingApp() {
       wpm: finalWpm,
       rawWpm,
       accuracy: finalAccuracy,
-      correctChars: correctKeystrokes,
-      incorrectChars: incorrectKeystrokes,
-      correctWords: correctWordCount,
-      incorrectWords: incorrectWordCount,
+      correctChars: finalCorrect,
+      incorrectChars: finalIncorrect,
+      correctWords: correctWordCountRef.current,
+      incorrectWords: incorrectWordCountRef.current,
       totalKeystrokes: totalChars,
       duration: durationSec,
       mode: settings.mode,
       timeOption: settings.timeDuration,
       wordOption: settings.wordCount,
       difficulty: settings.difficulty,
-      historyPoints: performanceHistory,
+      historyPoints:
+        performanceHistoryRef.current.length >= 2
+          ? [...performanceHistoryRef.current]
+          : [
+              { second: 0, wpm: 0, rawWpm: 0, accuracy: 100, errors: 0 },
+              { second: durationSec, wpm: finalWpm, rawWpm: finalWpm, accuracy: finalAccuracy, errors: finalIncorrect },
+            ],
     };
 
     setTestResult(result);
-
     const updatedHistory = saveResultToHistory(result);
     setHistory(updatedHistory);
     setPreviousResult(result);
@@ -187,22 +190,22 @@ export default function TypingApp() {
     if (settings.soundEnabled) {
       soundManager.playComplete(settings.soundVolume / 100);
     }
-  }, [
-    elapsedSeconds,
-    correctKeystrokes,
-    incorrectKeystrokes,
-    correctWordCount,
-    incorrectWordCount,
-    settings,
-    performanceHistory,
-    personalBest,
-  ]);
+  }, [settings, personalBest]);
 
-  // Start Test
+  // Start Test - Single interval with timestamp calculation: strictly 1 second per second!
   const startTest = useCallback(() => {
-    if (testState === 'running') return;
+    if (testStateRef.current === 'running') return;
+    testStateRef.current = 'running';
     setTestState('running');
-    setElapsedSeconds(0);
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    const now = Date.now();
+    startTimeRef.current = now;
+    lastSampledSecRef.current = 0;
     prevSecondKeysRef.current = 0;
     secondDeltasRef.current = [];
 
@@ -213,68 +216,162 @@ export default function TypingApp() {
       accuracy: 100,
       errors: 0,
     };
+    performanceHistoryRef.current = [initialPoint];
     setPerformanceHistory([initialPoint]);
 
+    const targetDurationMs = settings.timeDuration * 1000;
+
     timerRef.current = setInterval(() => {
-      setElapsedSeconds((prevElapsed) => {
-        const nextElapsed = prevElapsed + 1;
+      const elapsedMs = Date.now() - startTimeRef.current;
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      const remainingSec = Math.max(0, Math.ceil((targetDurationMs - elapsedMs) / 1000));
 
-        if (settings.mode === 'time') {
-          setTimeLeft((prevTime) => {
-            if (prevTime <= 1) {
-              setTimeout(() => finishTest(), 0);
-              return 0;
-            }
-            return prevTime - 1;
-          });
+      setTimeLeft(remainingSec);
+      setElapsedSeconds(elapsedSec);
+
+      // Record performance sample once every new elapsed second
+      if (elapsedSec > lastSampledSecRef.current) {
+        lastSampledSecRef.current = elapsedSec;
+
+        const currentKeys = correctKeystrokesRef.current;
+        const deltaKeys = Math.max(0, currentKeys - prevSecondKeysRef.current);
+        prevSecondKeysRef.current = currentKeys;
+        secondDeltasRef.current.push(deltaKeys);
+
+        const recentWindow = secondDeltasRef.current.slice(-2);
+        const windowTotalKeys = recentWindow.reduce((a, b) => a + b, 0);
+        const windowDurationSec = Math.max(1, recentWindow.length);
+        const rollingInstantWpm = Math.round((windowTotalKeys / 5) * (60 / windowDurationSec));
+
+        const totalKeys = correctKeystrokesRef.current + incorrectKeystrokesRef.current;
+        const currentAcc = totalKeys > 0 ? Math.round((correctKeystrokesRef.current / totalKeys) * 100) : 100;
+
+        const point: PerformanceDataPoint = {
+          second: elapsedSec,
+          wpm: rollingInstantWpm,
+          rawWpm: rollingInstantWpm,
+          accuracy: currentAcc,
+          errors: incorrectKeystrokesRef.current,
+        };
+
+        performanceHistoryRef.current.push(point);
+        setPerformanceHistory([...performanceHistoryRef.current]);
+      }
+
+      // Finish test exactly when remaining seconds hit 0
+      if (remainingSec <= 0) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
         }
+        finishTest();
+      }
+    }, 200);
+  }, [settings.timeDuration, finishTest]);
 
-        setCorrectKeystrokes((latestCorrect) => {
-          setIncorrectKeystrokes((latestIncorrect) => {
-            // Delta keystrokes typed in this exact 1-second interval
-            const deltaKeys = Math.max(0, latestCorrect - prevSecondKeysRef.current);
-            prevSecondKeysRef.current = latestCorrect;
-            secondDeltasRef.current.push(deltaKeys);
+  // Reset / Restart Test
+  const resetTest = useCallback(
+    (newWordsList?: string[]) => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      testStateRef.current = 'idle';
+      setTestState('idle');
 
-            // 2-second moving average window to produce an authentic fluctuating speed curve
-            const recentWindow = secondDeltasRef.current.slice(-2);
-            const windowTotalKeys = recentWindow.reduce((a, b) => a + b, 0);
-            const windowDurationSec = recentWindow.length;
-            const rollingInstantWpm = Math.round((windowTotalKeys / 5) * (60 / windowDurationSec)) || 0;
+      startTimeRef.current = 0;
+      lastSampledSecRef.current = 0;
+      prevSecondKeysRef.current = 0;
+      secondDeltasRef.current = [];
 
-            const currentTotal = latestCorrect + latestIncorrect;
-            const currentAcc =
-              currentTotal > 0
-                ? Math.round((latestCorrect / currentTotal) * 100)
-                : 100;
+      correctKeystrokesRef.current = 0;
+      incorrectKeystrokesRef.current = 0;
+      correctWordCountRef.current = 0;
+      incorrectWordCountRef.current = 0;
+      mistakesRef.current = [];
+      currentWordIndexRef.current = 0;
+      currentInputRef.current = '';
+      performanceHistoryRef.current = [];
 
-            const point: PerformanceDataPoint = {
-              second: nextElapsed,
-              wpm: rollingInstantWpm,
-              rawWpm: rollingInstantWpm,
-              accuracy: currentAcc,
-              errors: latestIncorrect,
-            };
+      setCorrectKeystrokes(0);
+      setIncorrectKeystrokes(0);
+      setCorrectWordCount(0);
+      setIncorrectWordCount(0);
+      setMistakes([]);
+      setCurrentWordIndex(0);
+      setCurrentInput('');
+      setCompletedWords([]);
+      setTimeLeft(settings.timeDuration);
+      setElapsedSeconds(0);
+      setPerformanceHistory([]);
+      setTestResult(null);
+      setStreak(0);
+      setActiveKey(null);
 
-            setPerformanceHistory((prevPoints) => [...prevPoints, point]);
-            return latestIncorrect;
-          });
-          return latestCorrect;
-        });
+      const generated = newWordsList || generateWordList(settings.difficulty, 300);
+      wordsRef.current = generated;
+      setWords(generated);
+    },
+    [settings.timeDuration, settings.difficulty]
+  );
 
-        return nextElapsed;
-      });
-    }, 1000);
-  }, [testState, settings.mode, finishTest]);
+  // Practice specifically the mistyped words from previous session
+  const handlePracticeMistakes = useCallback(
+    (mistypedWords: string[]) => {
+      if (mistypedWords.length === 0) return;
+      const repeatedList: string[] = [];
+      while (repeatedList.length < 120) {
+        const shuffled = [...mistypedWords].sort(() => Math.random() - 0.5);
+        repeatedList.push(...shuffled);
+      }
+      resetTest(repeatedList);
+    },
+    [resetTest]
+  );
+
+  // Global Escape key to instantly restart test
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (isSettingsOpen || isThemeOpen || isHistoryOpen || isGuideOpen) return;
+      if (e.key === 'Escape') {
+        resetTest();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isSettingsOpen, isThemeOpen, isHistoryOpen, isGuideOpen, resetTest]);
+
+  // Update theme & save settings when settings change
+  const handleUpdateSettings = (newSettings: UserSettings) => {
+    setSettings(newSettings);
+    saveSettings(newSettings);
+    applyThemeToDom(getActiveTheme(newSettings));
+
+    if (testStateRef.current === 'idle') {
+      setTimeLeft(newSettings.timeDuration);
+      const generated = generateWordList(newSettings.difficulty, 300);
+      wordsRef.current = generated;
+      setWords(generated);
+    }
+  };
 
   // Input change handler
   const handleInputChange = (val: string) => {
+    currentInputRef.current = val;
     setCurrentInput(val);
+    if (testStateRef.current === 'idle' && val.length > 0) {
+      startTest();
+    }
   };
 
   // Word submission when Space is pressed
   const handleWordComplete = (typedWord: string) => {
-    const targetWord = words[currentWordIndex] || '';
+    if (testStateRef.current === 'idle') {
+      startTest();
+    }
+
+    const wordIdx = currentWordIndexRef.current;
+    const targetWord = wordsRef.current[wordIdx] || '';
     const isWordCorrect = typedWord === targetWord;
 
     let wordCorrectChars = 0;
@@ -295,15 +392,22 @@ export default function TypingApp() {
 
     if (isWordCorrect) {
       wordCorrectChars += 1;
-      setCorrectWordCount((prev) => prev + 1);
+      correctWordCountRef.current += 1;
+      setCorrectWordCount(correctWordCountRef.current);
+      setStreak((s) => s + 1);
     } else {
       wordIncorrectChars += 1;
-      setIncorrectWordCount((prev) => prev + 1);
-      setMistakes((prev) => [...prev, { target: targetWord, typed: typedWord }]);
+      incorrectWordCountRef.current += 1;
+      setIncorrectWordCount(incorrectWordCountRef.current);
+      mistakesRef.current.push({ target: targetWord, typed: typedWord });
+      setMistakes([...mistakesRef.current]);
+      setStreak(0);
     }
 
-    setCorrectKeystrokes((prev) => prev + wordCorrectChars);
-    setIncorrectKeystrokes((prev) => prev + wordIncorrectChars);
+    correctKeystrokesRef.current += wordCorrectChars;
+    incorrectKeystrokesRef.current += wordIncorrectChars;
+    setCorrectKeystrokes(correctKeystrokesRef.current);
+    setIncorrectKeystrokes(incorrectKeystrokesRef.current);
 
     const newWordData: WordData = {
       text: targetWord,
@@ -312,12 +416,15 @@ export default function TypingApp() {
     };
     setCompletedWords((prev) => [...prev, newWordData]);
 
-    const nextIndex = currentWordIndex + 1;
+    const nextIndex = wordIdx + 1;
+    currentWordIndexRef.current = nextIndex;
     setCurrentWordIndex(nextIndex);
+
+    currentInputRef.current = '';
     setCurrentInput('');
 
     if (settings.mode === 'words' && nextIndex >= settings.wordCount) {
-      setTimeout(() => finishTest(), 0);
+      finishTest();
     }
   };
 
@@ -517,21 +624,37 @@ export default function TypingApp() {
             onRestart={() => resetTest()}
             onChangeWords={() => resetTest(generateWordList(settings.difficulty, 300))}
             onOpenHistory={() => setIsHistoryOpen(true)}
+            onPracticeMistakes={handlePracticeMistakes}
           />
         ) : (
-          <TypingArea
-            words={words}
-            currentWordIndex={currentWordIndex}
-            currentInput={currentInput}
-            onInputChange={handleInputChange}
-            onWordComplete={handleWordComplete}
-            onStartTest={startTest}
-            testState={testState}
-            completedWords={completedWords}
-            settings={settings}
-            timeLeft={timeLeft}
-            onRestart={() => resetTest()}
-          />
+          <div className="flex flex-col gap-1">
+            <TypingArea
+              words={words}
+              currentWordIndex={currentWordIndex}
+              currentInput={currentInput}
+              onInputChange={handleInputChange}
+              onWordComplete={handleWordComplete}
+              onStartTest={startTest}
+              testState={testState}
+              completedWords={completedWords}
+              settings={settings}
+              timeLeft={timeLeft}
+              onRestart={() => resetTest()}
+              streak={streak}
+              liveWpm={liveWpm}
+              onUpdateSettings={handleUpdateSettings}
+              onKeyActivity={(k) => setActiveKey(k)}
+            />
+
+            <KeyboardVisualizer
+              activeKey={activeKey}
+              nextChar={
+                currentInput.length < (words[currentWordIndex] || '').length
+                  ? (words[currentWordIndex] || '')[currentInput.length]
+                  : ' '
+              }
+            />
+          </div>
         )}
 
         {/* Authentic 10FastFingers Content Below the Test */}

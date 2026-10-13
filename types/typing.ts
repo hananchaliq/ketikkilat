@@ -57,6 +57,7 @@ export interface UserSettings {
   customTheme: ThemeConfig;
   soundEnabled: boolean;
   soundVolume: number; // 0 - 100
+  soundProfile: 'mechanical' | 'thock' | 'typewriter' | 'bubble';
   difficulty: Difficulty;
   mode: TypingMode;
   timeDuration: number; // 15, 30, 60, 120

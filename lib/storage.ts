@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   },
   soundEnabled: true,
   soundVolume: 50,
+  soundProfile: 'mechanical',
   difficulty: 'normal',
   mode: 'time',
   timeDuration: 60,

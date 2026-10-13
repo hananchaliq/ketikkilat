@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { TestState, TypingMode } from '@/types/typing';
+import { Gauge, Zap, TrendingUp, CheckCircle2 } from 'lucide-react';
 
 interface LiveStatsProps {
   state: TestState;
@@ -22,45 +23,86 @@ interface LiveStatsProps {
 export function LiveStats({
   state,
   mode,
-  timeLeft,
   wordsCompleted,
   targetWords,
   liveWpm,
   liveAccuracy,
   correctKeystrokes,
   incorrectKeystrokes,
-  showLiveWpm = false,
-  showLiveAccuracy = false,
 }: LiveStatsProps) {
-  // If neither live metric is enabled and test is in time mode, render nothing to keep the pure 10FastFingers look
-  if (!showLiveWpm && !showLiveAccuracy && mode === 'time') {
-    return null;
-  }
+  // Speed tier badge label
+  const getSpeedPaceLabel = (wpm: number) => {
+    if (wpm >= 90) return { label: 'Kilat Dewa', color: 'text-amber-500 font-black' };
+    if (wpm >= 70) return { label: 'Sangat Cepat', color: 'text-cyan-500 font-bold' };
+    if (wpm >= 50) return { label: 'Cepat & Gesit', color: 'text-emerald-500 font-bold' };
+    if (wpm >= 30) return { label: 'Stabil', color: 'text-blue-500 font-medium' };
+    return { label: 'Pemanasan', color: 'text-[var(--text-muted)] font-normal' };
+  };
+
+  const pace = getSpeedPaceLabel(liveWpm);
+  const speedPercentage = Math.min(100, Math.round((liveWpm / 100) * 100));
 
   return (
-    <div className="flex items-center justify-between text-xs font-sans text-[var(--text-muted)] px-1 mb-2">
-      {mode === 'words' && (
-        <div>
-          Target: <strong className="text-[var(--text-main)]">{wordsCompleted} / {targetWords} kata</strong>
-        </div>
-      )}
+    <div className="w-full flex flex-col gap-1.5 mb-2 select-none">
+      <div className="flex items-center justify-between text-xs font-sans text-[var(--text-muted)] px-1">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {mode === 'words' ? (
+            <span>
+              Target: <strong className="text-[var(--text-main)]">{wordsCompleted} / {targetWords} kata</strong>
+            </span>
+          ) : (
+            <span>
+              Kata ke-<strong className="text-[var(--text-main)]">{wordsCompleted + 1}</strong>
+            </span>
+          )}
 
-      {(showLiveWpm || showLiveAccuracy) && state === 'running' && (
-        <div className="flex items-center gap-3 ml-auto font-mono text-[11px]">
-          {showLiveWpm && (
-            <span>
-              WPM: <strong className="text-[var(--color-accent)]">{liveWpm}</strong>
-            </span>
+          {state === 'running' && (
+            <>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <Gauge className="h-3.5 w-3.5 text-[var(--color-accent)] animate-pulse" />
+                <strong className="text-[var(--color-accent)] font-mono text-sm">{liveWpm} WPM</strong>
+              </span>
+              <span>·</span>
+              <span>
+                Akurasi:{' '}
+                <strong className={liveAccuracy >= 95 ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}>
+                  {liveAccuracy}%
+                </strong>
+              </span>
+              <span className="hidden sm:inline">·</span>
+              <span className={`hidden sm:inline-flex items-center gap-1 text-[11px] ${pace.color}`}>
+                <Zap className="h-3 w-3" />
+                <span>{pace.label}</span>
+              </span>
+            </>
           )}
-          {showLiveAccuracy && (
-            <span>
-              Akurasi: <strong className="text-green-600">{liveAccuracy}%</strong>
+        </div>
+
+        {(correctKeystrokes > 0 || incorrectKeystrokes > 0) && (
+          <div className="font-mono text-[11px] flex items-center gap-1.5 bg-[var(--bg-surface)] px-2 py-0.5 rounded border border-[var(--bg-border)] shadow-2xs">
+            <span className="text-green-700 dark:text-green-400 font-semibold flex items-center gap-0.5">
+              <CheckCircle2 className="h-3 w-3 inline text-green-600" />
+              {correctKeystrokes}
             </span>
-          )}
-          <span>
-            Karakter: <span className="text-green-600">{correctKeystrokes}</span> /{' '}
-            <span className="text-red-600">{incorrectKeystrokes}</span>
-          </span>
+            <span className="text-[var(--text-muted)]">/</span>
+            <span className="text-red-600 dark:text-red-400 font-semibold">{incorrectKeystrokes}</span>
+            <span className="text-[var(--text-muted)] text-[10px]">tuts</span>
+          </div>
+        )}
+      </div>
+
+      {/* Live Speed Dynamic Meter Line (Active during test) */}
+      {state === 'running' && (
+        <div className="w-full h-1 bg-[var(--bg-border)]/60 rounded-full overflow-hidden relative">
+          <div
+            className="h-full transition-all duration-300 ease-out rounded-full"
+            style={{
+              width: `${Math.max(4, speedPercentage)}%`,
+              backgroundColor: liveWpm >= 85 ? '#f59e0b' : liveWpm >= 65 ? '#06b6d4' : 'var(--color-accent)',
+              boxShadow: liveWpm >= 65 ? '0 0 8px currentColor' : undefined,
+            }}
+          />
         </div>
       )}
     </div>
