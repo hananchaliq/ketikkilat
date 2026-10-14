@@ -217,7 +217,7 @@ export function HistoryModal({
             className="px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm hover:scale-[1.02]"
             style={{
               backgroundColor: 'var(--color-accent)',
-              color: 'var(--bg-app)',
+              color: '#ffffff',
             }}
           >
             Tutup

@@ -50,44 +50,44 @@ export function ResultsView({
   const isNewBest = result.wpm >= personalBest && personalBest > 0;
   const cpm = result.wpm * 5;
 
-  // Speed tier badge definition
+  // Speed tier badge definition - clean, dignified, non-slop
   const getSpeedTier = (wpm: number) => {
     if (wpm >= 90) {
       return {
         title: 'Kilat Dewa (Grandmaster)',
-        subtitle: 'Kecepatan luar biasa! Jari Anda melesat seperti kilat.',
-        badgeColor: 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.5)]',
-        icon: <Trophy className="h-5 w-5 text-amber-300 animate-spin-once" />,
+        subtitle: 'Kecepatan luar biasa! Jari Anda melesat seperti kilat presisi.',
+        badgeColor: 'bg-amber-600 text-white shadow-xs border border-amber-500/40',
+        icon: <Trophy className="h-5 w-5 text-amber-200" />,
       };
     }
     if (wpm >= 70) {
       return {
         title: 'Rajawali Angkasa (Master)',
-        subtitle: 'Sangat cepat dan konsisten di atas rata-rata nasional!',
-        badgeColor: 'bg-cyan-600 text-white shadow-xs',
-        icon: <Zap className="h-5 w-5 text-cyan-200 animate-bounce" />,
+        subtitle: 'Sangat cepat dan konsisten di atas rata-rata pengetik!',
+        badgeColor: 'bg-sky-600 text-white shadow-xs border border-sky-500/40',
+        icon: <Zap className="h-5 w-5 text-sky-100" />,
       };
     }
     if (wpm >= 50) {
       return {
         title: 'Macan Gesit (Profesional)',
         subtitle: 'Laju mengetik cepat, produktif, dan siap kerja profesional.',
-        badgeColor: 'bg-emerald-600 text-white shadow-xs',
-        icon: <Award className="h-5 w-5 text-emerald-200" />,
+        badgeColor: 'bg-emerald-600 text-white shadow-xs border border-emerald-500/40',
+        icon: <Award className="h-5 w-5 text-emerald-100" />,
       };
     }
     if (wpm >= 35) {
       return {
         title: 'Kuda Lari (Menengah)',
-        subtitle: 'Kecepatan standar yang baik, terus latih konsistensi!',
-        badgeColor: 'bg-blue-600 text-white shadow-xs',
-        icon: <Flame className="h-5 w-5 text-blue-200" />,
+        subtitle: 'Kecepatan standar yang baik, terus latih konsistensi ritme!',
+        badgeColor: 'bg-blue-600 text-white shadow-xs border border-blue-500/40',
+        icon: <Flame className="h-5 w-5 text-blue-100" />,
       };
     }
     return {
       title: 'Penyu Tekun (Pemula)',
-      subtitle: 'Awal yang baik! Terus berlatih 10 jari setiap hari.',
-      badgeColor: 'bg-slate-600 text-white shadow-xs',
+      subtitle: 'Awal yang baik! Terus berlatih 10 jari secara teratur.',
+      badgeColor: 'bg-slate-700 text-white shadow-xs border border-slate-600/40',
       icon: <Target className="h-5 w-5 text-slate-200" />,
     };
   };
@@ -245,15 +245,15 @@ Uji kecepatan jari Anda di KetikKilat!`;
             {/* Keystrokes Row */}
             <tr className="border-b" style={{ borderColor: 'var(--bg-border)' }}>
               <td className="py-2 text-[var(--text-muted)] font-medium">Keystrokes:</td>
-              <td className="py-2 text-right font-sans">
-                <span className="font-semibold text-[var(--text-main)]">{result.totalKeystrokes}</span>
-                <span className="text-[var(--text-muted)] ml-1">
+              <td className="py-2 text-right">
+                <span className="font-semibold text-[var(--text-main)] font-mono tabular-nums">{result.totalKeystrokes}</span>
+                <span className="text-[var(--text-muted)] ml-1 font-mono text-xs">
                   ({' '}
-                  <span className="font-bold text-green-700 dark:text-green-400">
+                  <span className="font-semibold text-green-700 dark:text-green-400 tabular-nums">
                     {result.correctChars}
                   </span>{' '}
                   |{' '}
-                  <span className="font-bold text-red-600 dark:text-red-400">
+                  <span className="font-semibold text-red-600 dark:text-red-400 tabular-nums">
                     {result.incorrectChars}
                   </span>{' '}
                   )
@@ -264,7 +264,7 @@ Uji kecepatan jari Anda di KetikKilat!`;
             {/* Accuracy Row */}
             <tr className="border-b" style={{ borderColor: 'var(--bg-border)' }}>
               <td className="py-2 text-[var(--text-muted)] font-medium">Akurasi:</td>
-              <td className="py-2 text-right font-semibold text-[var(--text-main)]">
+              <td className="py-2 text-right font-semibold text-[var(--text-main)] font-mono tabular-nums">
                 {result.accuracy}%
               </td>
             </tr>
@@ -272,7 +272,7 @@ Uji kecepatan jari Anda di KetikKilat!`;
             {/* Correct Words Row */}
             <tr className="border-b" style={{ borderColor: 'var(--bg-border)' }}>
               <td className="py-2 text-[var(--text-muted)] font-medium">Kata Benar:</td>
-              <td className="py-2 text-right font-bold text-green-700 dark:text-green-400">
+              <td className="py-2 text-right font-bold text-green-700 dark:text-green-400 font-mono tabular-nums">
                 {result.correctWords}
               </td>
             </tr>
@@ -280,7 +280,7 @@ Uji kecepatan jari Anda di KetikKilat!`;
             {/* Wrong Words Row */}
             <tr>
               <td className="py-2 text-[var(--text-muted)] font-medium">Kata Salah:</td>
-              <td className="py-2 text-right font-bold text-red-600 dark:text-red-400">
+              <td className="py-2 text-right font-bold text-red-600 dark:text-red-400 font-mono tabular-nums">
                 {result.incorrectWords}
               </td>
             </tr>

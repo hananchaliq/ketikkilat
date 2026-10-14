@@ -143,9 +143,9 @@ export function KeyboardVisualizer({
               <span>Panduan Zona Jari</span>
             </label>
             <span className="hidden sm:inline">·</span>
-            <span className="hidden sm:flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
-              <span>Target Berikutnya: <strong className="font-mono text-[var(--text-main)]">{nextChar === ' ' ? 'Spasi' : nextChar || '-'}</strong></span>
+            <span className="hidden sm:flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" />
+              <span>Target Berikutnya: <strong className="font-mono text-[var(--text-main)] font-semibold">{nextChar === ' ' ? 'Spasi' : nextChar || '-'}</strong></span>
             </span>
           </div>
         )}
@@ -197,14 +197,6 @@ export function KeyboardVisualizer({
                       {/* Home row key notch indicator for F and J */}
                       {isHomeKey && !isCurrentActive && (
                         <div className="absolute bottom-1 w-2.5 sm:w-3.5 h-[2px] rounded-full bg-[var(--text-muted)] opacity-60" />
-                      )}
-
-                      {/* Active Key Ripple Spark */}
-                      {isCurrentActive && (
-                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                        </span>
                       )}
                     </div>
                   );

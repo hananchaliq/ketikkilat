@@ -3,7 +3,7 @@ import { ThemeConfig } from '@/types/typing';
 export const THEME_PRESETS: ThemeConfig[] = [
   {
     id: '10ff-classic',
-    name: '10FastFingers Klasik (Default)',
+    name: 'KetikKilat Klasik (Default)',
     bg: '#f0f4f8',
     surface: '#ffffff',
     surfaceBorder: '#d1d5db',
@@ -17,7 +17,7 @@ export const THEME_PRESETS: ThemeConfig[] = [
   },
   {
     id: '10ff-dark',
-    name: '10FF Dark Mode',
+    name: 'KetikKilat Dark',
     bg: '#0f172a',
     surface: '#1e293b',
     surfaceBorder: '#334155',

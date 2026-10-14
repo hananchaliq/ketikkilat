@@ -669,10 +669,10 @@ export default function TypingApp() {
               }}
             >
               <h3 className="font-bold text-base text-[var(--text-main)] mb-2">
-                Tentang Tes Mengetik 10FastFingers
+                Tentang Tes Mengetik KetikKilat
               </h3>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
-                Tes ini mengukur seberapa banyak kata Bahasa Indonesia yang dapat Anda ketik secara tepat dalam waktu 60 detik. Kosakata yang disajikan diambil dari kumpulan kata-kata bahasa Indonesia yang paling sering digunakan sehari-hari.
+                Tes ini mengukur seberapa banyak kata Bahasa Indonesia yang dapat Anda ketik secara tepat dan berirama dalam waktu 60 detik. Kosakata yang disajikan diambil dari kumpulan kata-kata bahasa Indonesia yang paling sering digunakan sehari-hari.
               </p>
               <ul className="text-xs text-[var(--text-muted)] space-y-1.5 list-disc pl-4">
                 <li>
@@ -685,7 +685,7 @@ export default function TypingApp() {
                   <strong className="text-[var(--text-main)]">Kata Salah:</strong> Ditandai dengan warna merah.
                 </li>
                 <li>
-                  <strong className="text-[var(--text-main)]">Tab + Enter:</strong> Mengulang tes seketika.
+                  <strong className="text-[var(--text-main)]">Tab + Enter / Esc:</strong> Mengulang sesi tes seketika.
                 </li>
               </ul>
             </div>
@@ -710,23 +710,23 @@ export default function TypingApp() {
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--bg-border)' }}>
                   <tr>
-                    <td className="py-1.5 font-medium">&lt; 25 WPM</td>
+                    <td className="py-1.5 font-medium font-mono tabular-nums">&lt; 25 WPM</td>
                     <td className="py-1.5 text-[var(--text-muted)]">Pemula / Lambat</td>
                   </tr>
                   <tr>
-                    <td className="py-1.5 font-medium">25 – 45 WPM</td>
+                    <td className="py-1.5 font-medium font-mono tabular-nums">25 – 45 WPM</td>
                     <td className="py-1.5 text-[var(--text-muted)]">Rata-rata Normal</td>
                   </tr>
                   <tr>
-                    <td className="py-1.5 font-medium">45 – 65 WPM</td>
+                    <td className="py-1.5 font-medium font-mono tabular-nums">45 – 65 WPM</td>
                     <td className="py-1.5 text-[var(--text-muted)]">Cepat & Produktif</td>
                   </tr>
                   <tr>
-                    <td className="py-1.5 font-medium">65 – 85 WPM</td>
+                    <td className="py-1.5 font-medium font-mono tabular-nums">65 – 85 WPM</td>
                     <td className="py-1.5 text-[var(--text-muted)]">Sangat Cepat</td>
                   </tr>
                   <tr>
-                    <td className="py-1.5 font-medium font-bold text-green-700 dark:text-green-400">&gt; 85 WPM</td>
+                    <td className="py-1.5 font-medium font-mono tabular-nums font-bold text-green-700 dark:text-green-400">&gt; 85 WPM</td>
                     <td className="py-1.5 text-green-700 dark:text-green-400 font-semibold">Master / Profesional</td>
                   </tr>
                 </tbody>
@@ -747,7 +747,7 @@ export default function TypingApp() {
       >
         <div className="max-w-4xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            10FastFingers ID (KetikKilat) &copy; {new Date().getFullYear()} — Tes Kecepatan Mengetik Indonesia
+            KetikKilat &copy; {new Date().getFullYear()} — Platform Latihan & Tes Kecepatan Mengetik Indonesia
           </div>
           <div className="flex items-center gap-3">
             <button

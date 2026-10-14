@@ -242,27 +242,27 @@ export function TypingArea({
     return `0:${sec.toString().padStart(2, '0')}`;
   };
 
-  // Font size classes
+  // Font size classes with strict monospace geometry
   const getFontSizeClass = () => {
     switch (settings.fontSize) {
       case 'sm':
-        return 'text-xl leading-10';
+        return 'text-lg sm:text-xl leading-10 font-mono tracking-wide';
       case 'md':
-        return 'text-2xl leading-11';
+        return 'text-xl sm:text-2xl leading-11 font-mono tracking-wide';
       case 'xl':
-        return 'text-[28px] leading-12';
+        return 'text-2xl sm:text-[28px] leading-12 font-mono tracking-wide';
       case 'lg':
       default:
-        return 'text-2xl sm:text-[26px] leading-11';
+        return 'text-xl sm:text-[25px] leading-11 font-mono tracking-wide';
     }
   };
 
-  // Dynamic reactive speed aura
+  // Dynamic reactive speed border - refined, functional, zero-slop
   const getSpeedAuraClass = () => {
     if (testState !== 'running') return '';
-    if (liveWpm >= 85) return 'animate-speed-blaze ring-2 ring-amber-400 border-amber-500';
-    if (liveWpm >= 65) return 'animate-lightning-surge ring-2 ring-cyan-400 border-cyan-400';
-    if (liveWpm >= 45) return 'ring-1 ring-blue-400/70 border-blue-400/80 shadow-[0_0_12px_rgba(59,130,246,0.2)]';
+    if (liveWpm >= 85) return 'animate-speed-blaze border-amber-500';
+    if (liveWpm >= 65) return 'animate-lightning-surge border-sky-500';
+    if (liveWpm >= 45) return 'border-blue-500/70 shadow-2xs';
     return '';
   };
 
@@ -282,23 +282,23 @@ export function TypingArea({
         <div className="flex items-center gap-2">
           {streak >= 3 ? (
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all duration-200 ${
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold transition-all duration-200 ${
                 streak >= 20
-                  ? 'bg-amber-500 text-white shadow-[0_0_12px_rgba(245,158,11,0.5)] animate-pulse'
+                  ? 'bg-amber-600 text-white shadow-xs'
                   : streak >= 10
-                  ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-xs'
-                  : 'text-amber-800 bg-amber-100 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-amber-800 bg-amber-100 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800'
               }`}
             >
               {streak >= 20 ? (
                 <Award className="h-3.5 w-3.5 animate-spin-once" />
               ) : streak >= 10 ? (
-                <Zap className="h-3.5 w-3.5 animate-bounce" />
+                <Zap className="h-3.5 w-3.5" />
               ) : (
                 <Flame className="h-3.5 w-3.5 text-amber-500" />
               )}
               <span>
-                {streak}x Beruntun! {streak >= 20 ? '👑 DEWA!' : streak >= 10 ? '🔥 ON FIRE!' : ''}
+                {streak}x Beruntun {streak >= 20 ? '· Presisi Sempurna' : streak >= 10 ? '· Ritme Cepat' : ''}
               </span>
             </div>
           ) : (
@@ -387,7 +387,7 @@ export function TypingArea({
       >
         <div
           ref={wordsWrapperRef}
-          className={`flex flex-wrap items-center gap-x-3.5 gap-y-2 font-sans transition-transform duration-200 ease-out ${getFontSizeClass()}`}
+          className={`flex flex-wrap items-center gap-x-4 gap-y-2 font-mono tracking-wide transition-transform duration-200 ease-out ${getFontSizeClass()}`}
         >
           {words.map((word, wordIndex) => {
             const isCurrent = wordIndex === currentWordIndex;
@@ -526,7 +526,7 @@ export function TypingArea({
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          className={`flex-1 h-12 px-4 rounded-md border font-sans text-xl sm:text-2xl outline-none transition-all shadow-2xs focus:ring-2 focus:ring-[var(--color-accent)] ${
+          className={`flex-1 h-12 px-4 rounded-md border font-mono tracking-wide text-xl sm:text-2xl outline-none transition-all shadow-2xs focus:ring-2 focus:ring-[var(--color-accent)] ${
             hasErrorInCurrentWord
               ? 'text-red-600 dark:text-red-400 font-semibold bg-red-50/50 dark:bg-red-950/20 border-red-400'
               : 'text-slate-900 dark:text-slate-100 font-medium'

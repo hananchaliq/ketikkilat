@@ -60,13 +60,13 @@ export function LiveStats({
             <>
               <span>·</span>
               <span className="flex items-center gap-1">
-                <Gauge className="h-3.5 w-3.5 text-[var(--color-accent)] animate-pulse" />
-                <strong className="text-[var(--color-accent)] font-mono text-sm">{liveWpm} WPM</strong>
+                <Gauge className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+                <strong className="text-[var(--color-accent)] font-mono text-sm tabular-nums">{liveWpm} WPM</strong>
               </span>
               <span>·</span>
               <span>
                 Akurasi:{' '}
-                <strong className={liveAccuracy >= 95 ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}>
+                <strong className={`tabular-nums ${liveAccuracy >= 95 ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
                   {liveAccuracy}%
                 </strong>
               </span>
@@ -80,7 +80,7 @@ export function LiveStats({
         </div>
 
         {(correctKeystrokes > 0 || incorrectKeystrokes > 0) && (
-          <div className="font-mono text-[11px] flex items-center gap-1.5 bg-[var(--bg-surface)] px-2 py-0.5 rounded border border-[var(--bg-border)] shadow-2xs">
+          <div className="font-mono text-[11px] tabular-nums flex items-center gap-1.5 bg-[var(--bg-surface)] px-2 py-0.5 rounded border border-[var(--bg-border)] shadow-2xs">
             <span className="text-green-700 dark:text-green-400 font-semibold flex items-center gap-0.5">
               <CheckCircle2 className="h-3 w-3 inline text-green-600" />
               {correctKeystrokes}
@@ -99,8 +99,7 @@ export function LiveStats({
             className="h-full transition-all duration-300 ease-out rounded-full"
             style={{
               width: `${Math.max(4, speedPercentage)}%`,
-              backgroundColor: liveWpm >= 85 ? '#f59e0b' : liveWpm >= 65 ? '#06b6d4' : 'var(--color-accent)',
-              boxShadow: liveWpm >= 65 ? '0 0 8px currentColor' : undefined,
+              backgroundColor: liveWpm >= 85 ? '#d97706' : liveWpm >= 65 ? '#0284c7' : 'var(--color-accent)',
             }}
           />
         </div>

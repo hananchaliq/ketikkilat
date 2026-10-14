@@ -49,36 +49,39 @@ export function Navbar({
         <div className="flex items-center gap-6">
           <button
             onClick={() => setActiveTab('test')}
-            className="flex items-center gap-2 text-left cursor-pointer transition-opacity hover:opacity-85"
+            className="flex items-center gap-2 text-left cursor-pointer transition-opacity hover:opacity-90"
+            title="KetikKilat Beranda"
           >
             <div
-              className="flex h-7 w-7 items-center justify-center rounded text-white font-bold text-xs"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-white font-bold shadow-xs"
               style={{ backgroundColor: 'var(--color-accent)' }}
             >
-              <Keyboard className="h-4 w-4" />
+              <svg className="h-4 w-4 fill-white" viewBox="0 0 24 24">
+                <path d="M13 2L4 13.5h6L9 22l11-12.5h-7z" />
+              </svg>
             </div>
-            <span className="text-base font-bold tracking-tight text-[var(--text-main)] font-sans">
-              10FastFingers<span className="text-xs font-normal text-[var(--text-muted)] ml-1">ID</span>
+            <span className="text-base font-extrabold tracking-tight text-[var(--text-main)] font-sans">
+              Ketik<span className="text-[var(--color-accent)]">Kilat</span>
             </span>
           </button>
 
-          {/* Nav links matching 10FastFingers menu */}
+          {/* Nav links */}
           <nav className="hidden md:flex items-center gap-1 text-xs font-medium">
             <button
               onClick={() => setActiveTab('test')}
-              className={`px-3 py-1.5 rounded transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                 activeTab === 'test'
-                  ? 'bg-[var(--bg-app)] text-[var(--color-accent)] font-bold'
+                  ? 'bg-[var(--bg-app)] text-[var(--color-accent)] font-semibold'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
               }`}
             >
-              Tes Mengetik (1 Menit)
+              Tes Kecepatan (1 Menit)
             </button>
             <button
               onClick={() => setActiveTab('practice')}
-              className={`px-3 py-1.5 rounded transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                 activeTab === 'practice'
-                  ? 'bg-[var(--bg-app)] text-[var(--color-accent)] font-bold'
+                  ? 'bg-[var(--bg-app)] text-[var(--color-accent)] font-semibold'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
               }`}
             >
@@ -86,13 +89,13 @@ export function Navbar({
             </button>
             <button
               onClick={onOpenHistory}
-              className="px-3 py-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
             >
               Riwayat Skor
             </button>
             <button
               onClick={onOpenGuide}
-              className="px-3 py-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
             >
               Panduan 10 Jari
             </button>
