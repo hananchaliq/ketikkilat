@@ -86,7 +86,9 @@ export default function TypingApp() {
   const testStateRef = useRef<TestState>('idle');
   const lastSampledSecRef = useRef<number>(0);
   const prevSecondKeysRef = useRef<number>(0);
+  const prevSecondErrorsRef = useRef<number>(0);
   const secondDeltasRef = useRef<number[]>([]);
+  const secondErrorDeltasRef = useRef<number[]>([]);
 
   // Authoritative metric refs (never stale, updated synchronously)
   const correctKeystrokesRef = useRef<number>(0);
@@ -109,7 +111,7 @@ export default function TypingApp() {
     applyThemeToDom(getActiveTheme(settings));
   }, [settings]);
 
-  // Finish Test - Reads directly from authoritative refs so results are NEVER zero
+  // Finish Test - Reads directly from authoritative refs so results are accurate and never falsely inflated
   const finishTest = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -120,18 +122,17 @@ export default function TypingApp() {
     testStateRef.current = 'completed';
     setTestState('completed');
 
-    // Count any correct and incorrect characters typed in the active input
+    // Count unfinished word keystrokes at the timer cutoff
     let pendingCorrect = 0;
     let pendingIncorrect = 0;
     const currentVal = currentInputRef.current.trim();
     const target = wordsRef.current[currentWordIndexRef.current] || '';
     if (currentVal.length > 0) {
-      for (let i = 0; i < currentVal.length; i++) {
-        if (i < target.length && currentVal[i] === target[i]) {
-          pendingCorrect++;
-        } else {
-          pendingIncorrect++;
-        }
+      // If the typed prefix matches the target word, credit those keystrokes; if mistyped, count as errors
+      if (target.startsWith(currentVal)) {
+        pendingCorrect = currentVal.length;
+      } else {
+        pendingIncorrect = currentVal.length;
       }
     }
 
@@ -143,8 +144,9 @@ export default function TypingApp() {
     const durationSec = Math.max(1, Math.round(actualElapsedMs / 1000));
     const durationMin = durationSec / 60;
 
-    // Standard 10FastFingers WPM: (correct keystrokes / 5) / minutes
-    const finalWpm = Math.round(finalCorrect / 5 / durationMin) || 0;
+    // Standard 10FastFingers Net WPM: (correct keystrokes / 5) / minutes
+    // Mistyped words give 0 correct keystrokes, penalizing Net WPM appropriately!
+    const finalWpm = Math.max(0, Math.round(finalCorrect / 5 / durationMin)) || 0;
     const rawWpm = Math.round(totalChars / 5 / durationMin) || 0;
     const finalAccuracy = totalChars > 0 ? Math.round((finalCorrect / totalChars) * 100) : 100;
 
@@ -207,7 +209,9 @@ export default function TypingApp() {
     startTimeRef.current = now;
     lastSampledSecRef.current = 0;
     prevSecondKeysRef.current = 0;
+    prevSecondErrorsRef.current = 0;
     secondDeltasRef.current = [];
+    secondErrorDeltasRef.current = [];
 
     const initialPoint: PerformanceDataPoint = {
       second: 0,
@@ -233,25 +237,55 @@ export default function TypingApp() {
       if (elapsedSec > lastSampledSecRef.current) {
         lastSampledSecRef.current = elapsedSec;
 
-        const currentKeys = correctKeystrokesRef.current;
-        const deltaKeys = Math.max(0, currentKeys - prevSecondKeysRef.current);
-        prevSecondKeysRef.current = currentKeys;
-        secondDeltasRef.current.push(deltaKeys);
+        const currentCorrect = correctKeystrokesRef.current;
+        const currentErrors = incorrectKeystrokesRef.current;
 
-        const recentWindow = secondDeltasRef.current.slice(-2);
-        const windowTotalKeys = recentWindow.reduce((a, b) => a + b, 0);
-        const windowDurationSec = Math.max(1, recentWindow.length);
-        const rollingInstantWpm = Math.round((windowTotalKeys / 5) * (60 / windowDurationSec));
+        const deltaCorrect = Math.max(0, currentCorrect - prevSecondKeysRef.current);
+        const deltaErrors = Math.max(0, currentErrors - prevSecondErrorsRef.current);
 
-        const totalKeys = correctKeystrokesRef.current + incorrectKeystrokesRef.current;
-        const currentAcc = totalKeys > 0 ? Math.round((correctKeystrokesRef.current / totalKeys) * 100) : 100;
+        prevSecondKeysRef.current = currentCorrect;
+        prevSecondErrorsRef.current = currentErrors;
+
+        secondDeltasRef.current.push(deltaCorrect);
+        secondErrorDeltasRef.current.push(deltaErrors);
+
+        const recentCorrect = secondDeltasRef.current.slice(-2);
+        const recentErrors = secondErrorDeltasRef.current.slice(-2);
+
+        const windowCorrect = recentCorrect.reduce((a, b) => a + b, 0);
+        const windowErrors = recentErrors.reduce((a, b) => a + b, 0);
+        const windowDurationSec = Math.max(1, recentCorrect.length);
+
+        // Raw speed reflects gross keystrokes
+        const rollingRawWpm = Math.round(((windowCorrect + windowErrors) / 5) * (60 / windowDurationSec));
+
+        // Net speed strictly factors in errors: wrong keystrokes deduct speed
+        const rollingNetWpm = Math.max(
+          0,
+          Math.round(((windowCorrect - windowErrors) / 5) * (60 / windowDurationSec))
+        );
+
+        // Cumulative Net WPM baseline
+        const cumulativeNetWpm = Math.max(
+          0,
+          Math.round(currentCorrect / 5 / (elapsedSec / 60))
+        );
+
+        // Blend instant responsive dip/climb with cumulative stability
+        const instantWpm =
+          elapsedSec <= 2
+            ? rollingNetWpm
+            : Math.round(0.65 * rollingNetWpm + 0.35 * cumulativeNetWpm);
+
+        const totalKeys = currentCorrect + currentErrors;
+        const currentAcc = totalKeys > 0 ? Math.round((currentCorrect / totalKeys) * 100) : 100;
 
         const point: PerformanceDataPoint = {
           second: elapsedSec,
-          wpm: rollingInstantWpm,
-          rawWpm: rollingInstantWpm,
+          wpm: instantWpm,
+          rawWpm: Math.max(instantWpm, rollingRawWpm),
           accuracy: currentAcc,
-          errors: incorrectKeystrokesRef.current,
+          errors: currentErrors,
         };
 
         performanceHistoryRef.current.push(point);
@@ -282,7 +316,9 @@ export default function TypingApp() {
       startTimeRef.current = 0;
       lastSampledSecRef.current = 0;
       prevSecondKeysRef.current = 0;
+      prevSecondErrorsRef.current = 0;
       secondDeltasRef.current = [];
+      secondErrorDeltasRef.current = [];
 
       correctKeystrokesRef.current = 0;
       incorrectKeystrokesRef.current = 0;
@@ -374,29 +410,17 @@ export default function TypingApp() {
     const targetWord = wordsRef.current[wordIdx] || '';
     const isWordCorrect = typedWord === targetWord;
 
-    let wordCorrectChars = 0;
-    let wordIncorrectChars = 0;
-
-    const maxLen = Math.max(targetWord.length, typedWord.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < typedWord.length && i < targetWord.length) {
-        if (typedWord[i] === targetWord[i]) {
-          wordCorrectChars++;
-        } else {
-          wordIncorrectChars++;
-        }
-      } else {
-        wordIncorrectChars++;
-      }
-    }
-
     if (isWordCorrect) {
-      wordCorrectChars += 1;
+      // 10FastFingers standard: correct word awards full keystrokes (letters + space)
+      const correctChars = targetWord.length + 1;
+      correctKeystrokesRef.current += correctChars;
       correctWordCountRef.current += 1;
       setCorrectWordCount(correctWordCountRef.current);
       setStreak((s) => s + 1);
     } else {
-      wordIncorrectChars += 1;
+      // 10FastFingers standard: mistyped word awards 0 correct keystrokes; all typed chars count as errors
+      const errorChars = Math.max(typedWord.length, targetWord.length) + 1;
+      incorrectKeystrokesRef.current += errorChars;
       incorrectWordCountRef.current += 1;
       setIncorrectWordCount(incorrectWordCountRef.current);
       mistakesRef.current.push({ target: targetWord, typed: typedWord });
@@ -404,8 +428,6 @@ export default function TypingApp() {
       setStreak(0);
     }
 
-    correctKeystrokesRef.current += wordCorrectChars;
-    incorrectKeystrokesRef.current += wordIncorrectChars;
     setCorrectKeystrokes(correctKeystrokesRef.current);
     setIncorrectKeystrokes(incorrectKeystrokesRef.current);
 

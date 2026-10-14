@@ -65,8 +65,10 @@ export function LiveStats({
               </span>
               <span>·</span>
               <span>
-                Akurasi:{' '}
-                <strong className={`tabular-nums ${liveAccuracy >= 95 ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                <strong
+                  className="tabular-nums"
+                  style={{ color: liveAccuracy >= 90 ? 'var(--color-correct)' : 'var(--color-error)' }}
+                >
                   {liveAccuracy}%
                 </strong>
               </span>
@@ -81,12 +83,12 @@ export function LiveStats({
 
         {(correctKeystrokes > 0 || incorrectKeystrokes > 0) && (
           <div className="font-mono text-[11px] tabular-nums flex items-center gap-1.5 bg-[var(--bg-surface)] px-2 py-0.5 rounded border border-[var(--bg-border)] shadow-2xs">
-            <span className="text-green-700 dark:text-green-400 font-semibold flex items-center gap-0.5">
-              <CheckCircle2 className="h-3 w-3 inline text-green-600" />
+            <span className="font-semibold flex items-center gap-0.5" style={{ color: 'var(--color-correct)' }}>
+              <CheckCircle2 className="h-3 w-3 inline" />
               {correctKeystrokes}
             </span>
             <span className="text-[var(--text-muted)]">/</span>
-            <span className="text-red-600 dark:text-red-400 font-semibold">{incorrectKeystrokes}</span>
+            <span className="font-semibold" style={{ color: 'var(--color-error)' }}>{incorrectKeystrokes}</span>
             <span className="text-[var(--text-muted)] text-[10px]">tuts</span>
           </div>
         )}

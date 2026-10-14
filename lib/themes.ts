@@ -4,16 +4,16 @@ export const THEME_PRESETS: ThemeConfig[] = [
   {
     id: '10ff-classic',
     name: 'KetikKilat Klasik (Default)',
-    bg: '#f0f4f8',
+    bg: '#f1f5f9',
     surface: '#ffffff',
-    surfaceBorder: '#d1d5db',
-    text: '#1f2937',
-    textMuted: '#6b7280',
-    accent: '#337ab7',
-    correct: '#2e7d32',
-    error: '#c62828',
-    caret: '#337ab7',
-    chartLine: '#337ab7',
+    surfaceBorder: '#94a3b8',
+    text: '#0f172a',
+    textMuted: '#475569',
+    accent: '#2563eb',
+    correct: '#15803d',
+    error: '#dc2626',
+    caret: '#2563eb',
+    chartLine: '#2563eb',
   },
   {
     id: '10ff-dark',
@@ -33,10 +33,10 @@ export const THEME_PRESETS: ThemeConfig[] = [
     id: 'clean-white',
     name: 'Putih Minimalis',
     bg: '#ffffff',
-    surface: '#f9fafb',
-    surfaceBorder: '#e5e7eb',
-    text: '#111827',
-    textMuted: '#4b5563',
+    surface: '#f8fafc',
+    surfaceBorder: '#cbd5e1',
+    text: '#020617',
+    textMuted: '#475569',
     accent: '#2563eb',
     correct: '#15803d',
     error: '#b91c1c',
@@ -89,9 +89,19 @@ export const THEME_PRESETS: ThemeConfig[] = [
 
 export const DEFAULT_THEME = THEME_PRESETS[0];
 
+export function isDarkTheme(theme: ThemeConfig): boolean {
+  return theme.id === '10ff-dark' || theme.id === 'midnight' || theme.id === 'oled';
+}
+
 export function applyThemeToDom(theme: ThemeConfig) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
+
+  if (isDarkTheme(theme)) {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
 
   root.style.setProperty('--bg-app', theme.bg);
   root.style.setProperty('--bg-surface', theme.surface);

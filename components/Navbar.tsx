@@ -3,6 +3,7 @@
 import React from 'react';
 import { Volume2, VolumeX, Settings, History, Palette, RotateCcw, BookOpen, Keyboard } from 'lucide-react';
 import { UserSettings } from '@/types/typing';
+import { BrandLogo } from './BrandLogo';
 
 interface NavbarProps {
   activeTab: 'test' | 'practice' | 'history' | 'guide';
@@ -52,14 +53,7 @@ export function Navbar({
             className="flex items-center gap-2 text-left cursor-pointer transition-opacity hover:opacity-90"
             title="KetikKilat Beranda"
           >
-            <div
-              className="flex h-7 w-7 items-center justify-center rounded-md text-white font-bold shadow-xs"
-              style={{ backgroundColor: 'var(--color-accent)' }}
-            >
-              <svg className="h-4 w-4 fill-white" viewBox="0 0 24 24">
-                <path d="M13 2L4 13.5h6L9 22l11-12.5h-7z" />
-              </svg>
-            </div>
+            <BrandLogo size={28} />
             <span className="text-base font-extrabold tracking-tight text-[var(--text-main)] font-sans">
               Ketik<span className="text-[var(--color-accent)]">Kilat</span>
             </span>

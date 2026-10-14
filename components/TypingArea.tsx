@@ -401,11 +401,15 @@ export function TypingArea({
                   ref={(el) => {
                     wordRefs.current[wordIndex] = el;
                   }}
-                  className={`relative inline-flex items-center px-2 py-0.5 rounded transition-all duration-150 ${
-                    hasErrorInCurrentWord
-                      ? 'bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800'
-                      : 'bg-blue-100/90 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800'
-                  }`}
+                  className="relative inline-flex items-center px-2.5 py-1 rounded border-2 shadow-xs transition-all duration-150"
+                  style={{
+                    backgroundColor: hasErrorInCurrentWord
+                      ? 'rgba(239, 68, 68, 0.16)'
+                      : 'rgba(37, 99, 235, 0.12)',
+                    borderColor: hasErrorInCurrentWord
+                      ? 'var(--color-error)'
+                      : 'var(--color-accent)',
+                  }}
                 >
                   {/* Characters in active word */}
                   {word.split('').map((char, charIdx) => {
@@ -414,15 +418,17 @@ export function TypingArea({
                     const isTyped = charIdx < typedChars.length;
                     const isMatch = isTyped && typedChars[charIdx] === char;
 
-                    let charClassName = '';
+                    let charColor = 'var(--text-main)';
+                    let extraClass = 'font-bold';
+
                     if (isTyped) {
                       if (isMatch) {
-                        charClassName = 'text-green-700 dark:text-green-400 font-bold';
+                        charColor = 'var(--color-correct)';
+                        extraClass = 'font-extrabold';
                       } else {
-                        charClassName = 'text-red-600 dark:text-red-400 font-bold underline decoration-2';
+                        charColor = 'var(--color-error)';
+                        extraClass = 'font-extrabold underline decoration-2';
                       }
-                    } else {
-                      charClassName = 'text-slate-800 dark:text-slate-100 font-medium';
                     }
 
                     return (
@@ -436,14 +442,30 @@ export function TypingArea({
                             }}
                           />
                         )}
-                        <span className={charClassName}>{char}</span>
+                        <span
+                          className={extraClass}
+                          style={{
+                            color: charColor,
+                            backgroundColor: isTyped && !isMatch ? 'rgba(239, 68, 68, 0.18)' : undefined,
+                            borderRadius: '2px',
+                            padding: isTyped && !isMatch ? '0 1px' : undefined,
+                          }}
+                        >
+                          {char}
+                        </span>
                       </span>
                     );
                   })}
 
                   {/* Extra characters typed past target word length */}
                   {currentInput.length > word.length && (
-                    <span className="text-red-600 dark:text-red-400 font-bold underline decoration-2">
+                    <span
+                      className="font-extrabold underline decoration-2 rounded-xs px-0.5"
+                      style={{
+                        color: 'var(--color-error)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                      }}
+                    >
                       {currentInput.slice(word.length)}
                     </span>
                   )}
@@ -470,25 +492,30 @@ export function TypingArea({
                   ref={(el) => {
                     wordRefs.current[wordIndex] = el;
                   }}
-                  className={`inline-block px-1 py-0.5 transition-all duration-150 ${
-                    isCorrect
-                      ? 'font-medium text-green-700 dark:text-green-400'
-                      : 'font-medium text-red-600 dark:text-red-400 line-through'
+                  className={`inline-block px-1.5 py-0.5 transition-all duration-150 font-semibold ${
+                    isCorrect ? '' : 'line-through opacity-85'
                   }`}
+                  style={{
+                    color: isCorrect ? 'var(--color-correct)' : 'var(--color-error)',
+                  }}
                 >
                   {word}
                 </span>
               );
             }
 
-            // Upcoming words
+            // Upcoming words - Always match active theme text color with high contrast
             return (
               <span
                 key={wordIndex}
                 ref={(el) => {
                   wordRefs.current[wordIndex] = el;
                 }}
-                className="inline-block px-1 py-0.5 text-slate-700 dark:text-slate-300 font-normal"
+                className="inline-block px-1.5 py-0.5 font-semibold tracking-wide transition-colors"
+                style={{
+                  color: 'var(--text-main)',
+                  opacity: 0.88,
+                }}
               >
                 {word}
               </span>
@@ -526,14 +553,11 @@ export function TypingArea({
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          className={`flex-1 h-12 px-4 rounded-md border font-mono tracking-wide text-xl sm:text-2xl outline-none transition-all shadow-2xs focus:ring-2 focus:ring-[var(--color-accent)] ${
-            hasErrorInCurrentWord
-              ? 'text-red-600 dark:text-red-400 font-semibold bg-red-50/50 dark:bg-red-950/20 border-red-400'
-              : 'text-slate-900 dark:text-slate-100 font-medium'
-          }`}
+          className="flex-1 h-12 px-4 rounded-md border font-mono tracking-wide text-xl sm:text-2xl font-bold outline-none transition-all shadow-2xs focus:ring-2 focus:ring-[var(--color-accent)]"
           style={{
-            backgroundColor: hasErrorInCurrentWord ? undefined : 'var(--bg-surface)',
-            borderColor: hasErrorInCurrentWord ? undefined : 'var(--bg-border)',
+            backgroundColor: hasErrorInCurrentWord ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-surface)',
+            borderColor: hasErrorInCurrentWord ? 'var(--color-error)' : 'var(--bg-border)',
+            color: hasErrorInCurrentWord ? 'var(--color-error)' : 'var(--text-main)',
           }}
           placeholder=""
         />
