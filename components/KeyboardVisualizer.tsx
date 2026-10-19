@@ -91,7 +91,7 @@ const ROWS: KeyDef[][] = [
 export function KeyboardVisualizer({
   activeKey,
   nextChar,
-  isOpenDefault = true,
+  isOpenDefault = false,
 }: KeyboardVisualizerProps) {
   const [isOpen, setIsOpen] = useState(isOpenDefault);
   const [showFingers, setShowFingers] = useState(true);
