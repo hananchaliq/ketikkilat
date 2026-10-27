@@ -31,6 +31,9 @@ interface ResultsViewProps {
   onChangeWords: () => void;
   onOpenHistory: () => void;
   onPracticeMistakes?: (words: string[]) => void;
+  username?: string;
+  onSubmitToLeaderboard?: (username: string) => void;
+  leaderboardStatus?: { type: 'success' | 'info' | 'error'; text: string } | null;
 }
 
 export function ResultsView({
@@ -42,10 +45,14 @@ export function ResultsView({
   onChangeWords,
   onOpenHistory,
   onPracticeMistakes,
+  username = '',
+  onSubmitToLeaderboard,
+  leaderboardStatus,
 }: ResultsViewProps) {
   const [copied, setCopied] = useState(false);
   const [showMistakes, setShowMistakes] = useState(false);
   const [displayWpm, setDisplayWpm] = useState(0);
+  const [inputUsername, setInputUsername] = useState(username);
 
   const isNewBest = result.wpm >= personalBest && personalBest > 0;
   const cpm = result.wpm * 5;
@@ -277,7 +284,7 @@ Uji kecepatan jari Anda di KetikKilat!`;
               </td>
             </tr>
 
-            {/* Wrong Words Row */}
+              {/* Wrong Words Row */}
             <tr>
               <td className="py-2 text-[var(--text-muted)] font-medium">Kata Salah:</td>
               <td className="py-2 text-right font-bold text-red-600 dark:text-red-400 font-mono tabular-nums">
@@ -287,7 +294,77 @@ Uji kecepatan jari Anda di KetikKilat!`;
           </tbody>
         </table>
 
-        {/* 10FastFingers Action Buttons with Lively Hovers */}
+        {/* Quick Leaderboard Status / Username Submission Strip */}
+        {onSubmitToLeaderboard && (
+          <div
+            className="mt-4 p-3 rounded border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+            style={{
+              backgroundColor: 'var(--bg-app)',
+              borderColor: 'var(--bg-border)',
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
+              {leaderboardStatus ? (
+                <span
+                  className={`font-medium ${
+                    leaderboardStatus.type === 'success'
+                      ? 'text-green-700 dark:text-green-400'
+                      : leaderboardStatus.type === 'error'
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-[var(--text-main)]'
+                  }`}
+                >
+                  {leaderboardStatus.text}
+                </span>
+              ) : result.accuracy < 85 ? (
+                <span className="text-[var(--text-muted)]">
+                  Syarat masuk Leaderboard minimal akurasi <strong>85%</strong> (skor saat ini: {result.accuracy}%).
+                </span>
+              ) : (
+                <span className="text-[var(--text-main)]">
+                  Masukkan username untuk mencatat skor <strong>{result.wpm} WPM</strong> ke Papan Peringkat:
+                </span>
+              )}
+            </div>
+
+            {!username && result.accuracy >= 85 && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (inputUsername.trim().length >= 2) {
+                    onSubmitToLeaderboard(inputUsername.trim());
+                  }
+                }}
+                className="flex items-center gap-1.5 shrink-0"
+              >
+                <input
+                  type="text"
+                  value={inputUsername}
+                  onChange={(e) => setInputUsername(e.target.value)}
+                  placeholder="Ketik username..."
+                  maxLength={22}
+                  className="px-2.5 py-1 rounded border text-xs font-medium outline-none focus:border-[var(--color-accent)]"
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    borderColor: 'var(--bg-border)',
+                    color: 'var(--text-main)',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={inputUsername.trim().length < 2}
+                  className="px-3 py-1 rounded text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 cursor-pointer whitespace-nowrap shrink-0"
+                  style={{ backgroundColor: 'var(--color-accent)' }}
+                >
+                  Simpan ke Leaderboard
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* 10FastFingers Action Buttons */}
         <div className="mt-5 pt-4 border-t flex flex-wrap items-center gap-2" style={{ borderColor: 'var(--bg-border)' }}>
           <button
             onClick={onRestart}

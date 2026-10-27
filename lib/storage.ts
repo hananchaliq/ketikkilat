@@ -97,3 +97,39 @@ export function getActiveTheme(settings: UserSettings): ThemeConfig {
   }
   return THEME_PRESETS.find((t) => t.id === settings.themeId) || DEFAULT_THEME;
 }
+
+const USERNAME_KEY = 'ketikkilat_username_v1';
+const CLIENT_ID_KEY = 'ketikkilat_client_id_v1';
+
+export function loadUsername(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return localStorage.getItem(USERNAME_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveUsername(username: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(USERNAME_KEY, username.trim());
+  } catch {
+    //
+  }
+}
+
+export function getOrCreateClientId(): string {
+  if (typeof window === 'undefined') return 'server';
+  try {
+    let existing = localStorage.getItem(CLIENT_ID_KEY);
+    if (!existing) {
+      existing = `kk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      localStorage.setItem(CLIENT_ID_KEY, existing);
+    }
+    return existing;
+  } catch {
+    return `kk-anon-${Math.random().toString(36).slice(2, 8)}`;
+  }
+}
+

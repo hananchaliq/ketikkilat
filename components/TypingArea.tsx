@@ -3,14 +3,7 @@
 import React, { useRef, useEffect, useState, useLayoutEffect, useCallback } from 'react';
 import { UserSettings, WordData, TestState } from '@/types/typing';
 import { soundManager, SoundProfile } from '@/lib/sound';
-import { RotateCcw, Flame, Zap, Award, Volume2, VolumeX, Sparkles } from 'lucide-react';
-
-interface SparkParticle {
-  id: number;
-  x: number;
-  y: number;
-  color: string;
-}
+import { RotateCcw, Flame, Zap, Award, Volume2, VolumeX, Gauge, Eye } from 'lucide-react';
 
 interface TypingAreaProps {
   words: string[];
@@ -28,6 +21,11 @@ interface TypingAreaProps {
   liveWpm?: number;
   onUpdateSettings?: (settings: UserSettings) => void;
   onKeyActivity?: (key: string) => void;
+  paceTargetWpm?: number;
+  paceLabel?: string;
+  onCyclePaceTarget?: () => void;
+  focusModeEnabled?: boolean;
+  onToggleFocusMode?: () => void;
 }
 
 export function TypingArea({
@@ -46,6 +44,11 @@ export function TypingArea({
   liveWpm = 0,
   onUpdateSettings,
   onKeyActivity,
+  paceTargetWpm = 0,
+  paceLabel = 'Mati',
+  onCyclePaceTarget,
+  focusModeEnabled = true,
+  onToggleFocusMode,
 }: TypingAreaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wordsWrapperRef = useRef<HTMLDivElement>(null);
@@ -53,10 +56,13 @@ export function TypingArea({
   const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   const [showPop, setShowPop] = useState(false);
-  const [popText, setPopText] = useState('+1 Benar!');
+  const [popText, setPopText] = useState('+1 Benar');
   const [isShaking, setIsShaking] = useState(false);
-  const [sparks, setSparks] = useState<SparkParticle[]>([]);
   const [isAudioBouncing, setIsAudioBouncing] = useState(false);
+
+  // Pace Car (Ghost cursor) character counter
+  const [paceCharsElapsed, setPaceCharsElapsed] = useState(0);
+  const paceStartRef = useRef<number>(0);
 
   // Focus input automatically on mount and whenever user clicks area
   const focusInput = useCallback(() => {
@@ -69,6 +75,39 @@ export function TypingArea({
     focusInput();
   }, [focusInput, testState]);
 
+  // Pace Car animation loop when test is running and paceTargetWpm > 0
+  useEffect(() => {
+    if (testState !== 'running' || paceTargetWpm <= 0) {
+      paceStartRef.current = 0;
+      return;
+    }
+
+    paceStartRef.current = Date.now();
+    const charsPerSecond = (paceTargetWpm * 5) / 60;
+
+    const interval = setInterval(() => {
+      const elapsedSec = (Date.now() - paceStartRef.current) / 1000;
+      setPaceCharsElapsed(Math.floor(elapsedSec * charsPerSecond));
+    }, 120);
+
+    return () => clearInterval(interval);
+  }, [testState, paceTargetWpm]);
+
+  // Map active pace characters to (ghostWordIndex, ghostCharIndex)
+  const effectivePaceChars = testState === 'running' && paceTargetWpm > 0 ? paceCharsElapsed : 0;
+  let ghostPosition: { wordIndex: number; charIndex: number } | null = null;
+  if (effectivePaceChars > 0) {
+    let remaining = effectivePaceChars;
+    for (let i = 0; i < words.length; i++) {
+      const wLen = words[i].length + 1;
+      if (remaining < wLen) {
+        ghostPosition = { wordIndex: i, charIndex: Math.min(remaining, words[i].length - 1) };
+        break;
+      }
+      remaining -= wLen;
+    }
+  }
+
   // Keep input focused when clicking anywhere in window if test is idle or running
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
@@ -77,6 +116,7 @@ export function TypingArea({
         target.closest('button') ||
         target.closest('input') ||
         target.closest('select') ||
+        target.closest('form') ||
         target.closest('dialog') ||
         target.closest('[role="dialog"]')
       ) {
@@ -90,50 +130,40 @@ export function TypingArea({
     return () => window.removeEventListener('click', handleGlobalClick);
   }, [focusInput, testState]);
 
-  // 10FastFingers 2-line smooth shifting algorithm with responsive measurements
-  useLayoutEffect(() => {
+  // Immediate 1st-Line Shifting Algorithm:
+  // As soon as the user finishes the 1st line and moves to the first word of the next line,
+  // immediately shift the completed line up so the active line is always at the top row!
+  const updateLineScroll = useCallback(() => {
     if (!wordsWrapperRef.current) return;
     if (currentWordIndex === 0) {
       wordsWrapperRef.current.style.transform = 'translateY(0px)';
       return;
     }
-    if (!wordRefs.current[currentWordIndex]) return;
-
     const currentWordEl = wordRefs.current[currentWordIndex];
     if (!currentWordEl) return;
 
     const currentTop = currentWordEl.offsetTop;
-
-    // Detect first word top offset (Line 1 base)
     const firstWordEl = wordRefs.current[0];
     const baseTop = firstWordEl ? firstWordEl.offsetTop : 0;
 
-    // Line height approximate delta (~46px - 52px)
     const lineDelta = currentTop - baseTop;
 
-    // When current word moves past Line 2 (lineDelta > 65px), shift up
-    if (lineDelta > 65) {
-      const shiftAmount = lineDelta - 48;
-      wordsWrapperRef.current.style.transform = `translateY(-${shiftAmount}px)`;
+    // Immediately shift up as soon as active word wraps to the second line (lineDelta > 16px)
+    if (lineDelta > 16) {
+      wordsWrapperRef.current.style.transform = `translateY(-${lineDelta}px)`;
     } else {
       wordsWrapperRef.current.style.transform = 'translateY(0px)';
     }
   }, [currentWordIndex]);
 
-  // Spawn visual spark particles on word completion
-  const spawnSparks = useCallback((xOffset = 0, yOffset = 0) => {
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#00f0ff'];
-    const newSparks: SparkParticle[] = Array.from({ length: 6 }).map((_, i) => ({
-      id: Date.now() + i + Math.random(),
-      x: xOffset + (Math.random() - 0.5) * 60,
-      y: yOffset + (Math.random() - 0.5) * 30,
-      color: colors[Math.floor(Math.random() * colors.length)],
-    }));
-    setSparks((prev) => [...prev, ...newSparks]);
-    setTimeout(() => {
-      setSparks((prev) => prev.filter((p) => !newSparks.some((n) => n.id === p.id)));
-    }, 600);
-  }, []);
+  useLayoutEffect(() => {
+    updateLineScroll();
+  }, [updateLineScroll, words, settings.fontSize]);
+
+  useEffect(() => {
+    window.addEventListener('resize', updateLineScroll);
+    return () => window.removeEventListener('resize', updateLineScroll);
+  }, [updateLineScroll]);
 
   // Check if current word has an error typed so far
   const targetWord = words[currentWordIndex] || '';
@@ -142,78 +172,134 @@ export function TypingArea({
     (currentInput !== targetWord.slice(0, currentInput.length) ||
       currentInput.length > targetWord.length);
 
-  // Input change handler
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  // Core value processor shared by direct input change and global auto-focus keypress
+  const processInputValue = useCallback(
+    (value: string) => {
+      // Auto-start test on first key typed
+      if (testState === 'idle' && value.length > 0) {
+        onStartTest();
+      }
 
-    // Auto-start test on first key typed
-    if (testState === 'idle' && value.length > 0) {
-      onStartTest();
-    }
+      // Spacebar pressed: Complete current word
+      if (value.endsWith(' ')) {
+        const typedWord = value.trim();
+        if (typedWord.length === 0) {
+          onInputChange('');
+          return;
+        }
 
-    // Spacebar pressed: Complete current word
-    if (value.endsWith(' ')) {
-      const typedWord = value.trim();
-      if (typedWord.length === 0) {
-        onInputChange('');
+        const isCorrect = typedWord === targetWord;
+        if (isCorrect) {
+          const nextStreak = streak + 1;
+          if (nextStreak % 10 === 0) {
+            setPopText(`${nextStreak}x Beruntun`);
+            if (settings.soundEnabled) {
+              soundManager.playStreak(settings.soundVolume / 100);
+            }
+          } else if (nextStreak >= 5) {
+            setPopText(`+1 (${nextStreak}x)`);
+          } else {
+            setPopText('+1 Benar');
+          }
+          setShowPop(true);
+          setTimeout(() => setShowPop(false), 450);
+        } else {
+          setIsShaking(true);
+          setTimeout(() => setIsShaking(false), 220);
+        }
+
+        onWordComplete(typedWord);
+        if (settings.soundEnabled) {
+          soundManager.playSpace(settings.soundVolume / 100, settings.soundProfile || 'mechanical');
+        }
         return;
       }
 
-      // Check if correct to award pop effect or error shake
-      const isCorrect = typedWord === targetWord;
-      if (isCorrect) {
-        const nextStreak = streak + 1;
-        if (nextStreak % 10 === 0) {
-          setPopText(`🔥 ${nextStreak} COMBO!`);
-          if (settings.soundEnabled) {
-            soundManager.playStreak(settings.soundVolume / 100);
-          }
-        } else if (nextStreak >= 5) {
-          setPopText(`⚡ +1 (${nextStreak}x)`);
-        } else {
-          setPopText('+1 Benar!');
-        }
-        setShowPop(true);
-        spawnSparks(0, 0);
-        setTimeout(() => setShowPop(false), 500);
-      } else {
-        setIsShaking(true);
-        setTimeout(() => setIsShaking(false), 250);
-      }
-
-      onWordComplete(typedWord);
+      // Normal typing: audio click & error feedback
       if (settings.soundEnabled) {
-        soundManager.playSpace(settings.soundVolume / 100, settings.soundProfile || 'mechanical');
-      }
-      return;
-    }
+        const charIndex = value.length - 1;
+        const isCorrectChar = charIndex >= 0 && value[charIndex] === targetWord[charIndex];
 
-    // Normal typing: check for audio click & error shake
-    if (settings.soundEnabled) {
-      const charIndex = value.length - 1;
-      const isCorrectChar = charIndex >= 0 && value[charIndex] === targetWord[charIndex];
+        if (isCorrectChar) {
+          soundManager.playKey(settings.soundVolume / 100, settings.soundProfile || 'mechanical');
+        } else {
+          soundManager.playError(settings.soundVolume / 100);
+        }
 
-      if (isCorrectChar) {
-        soundManager.playKey(settings.soundVolume / 100, settings.soundProfile || 'mechanical');
-      } else {
-        soundManager.playError(settings.soundVolume / 100);
+        setIsAudioBouncing(true);
+        setTimeout(() => setIsAudioBouncing(false), 120);
       }
 
-      setIsAudioBouncing(true);
-      setTimeout(() => setIsAudioBouncing(false), 120);
-    }
+      // Trigger subtle shake if newly typed char is a mismatch
+      if (
+        value.length > 0 &&
+        (value !== targetWord.slice(0, value.length) || value.length > targetWord.length) &&
+        !hasErrorInCurrentWord
+      ) {
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 220);
+      }
 
-    // Trigger subtle shake if newly typed char is a mismatch
-    if (
-      value.length > 0 &&
-      (value !== targetWord.slice(0, value.length) || value.length > targetWord.length) &&
-      !hasErrorInCurrentWord
-    ) {
-      setIsShaking(true);
-      setTimeout(() => setIsShaking(false), 250);
-    }
+      onInputChange(value);
+    },
+    [
+      testState,
+      onStartTest,
+      onInputChange,
+      targetWord,
+      streak,
+      settings.soundEnabled,
+      settings.soundVolume,
+      settings.soundProfile,
+      onWordComplete,
+      hasErrorInCurrentWord,
+    ]
+  );
 
-    onInputChange(value);
+  // Global Auto-Focus on Any Printable Keypress:
+  // If the user starts typing a letter without clicking the input box first,
+  // automatically focus the typing input and register that very first character!
+  useEffect(() => {
+    const handleGlobalKeyCapture = (e: KeyboardEvent) => {
+      if (testState === 'completed') return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (activeEl === inputRef.current) return;
+
+      // Do not hijack typing if user is typing in another input (e.g. Username field) or modal is open
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          activeEl.isContentEditable ||
+          activeEl.closest('[role="dialog"]'))
+      ) {
+        return;
+      }
+
+      // Capture printable single characters (letters, numbers, punctuation)
+      if (e.key.length === 1 && e.key !== ' ') {
+        e.preventDefault();
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+        if (onKeyActivity) {
+          onKeyActivity(e.key);
+          setTimeout(() => onKeyActivity(''), 80);
+        }
+        processInputValue(currentInput + e.key);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyCapture);
+    return () => window.removeEventListener('keydown', handleGlobalKeyCapture);
+  }, [testState, currentInput, processInputValue, onKeyActivity]);
+
+  // Input change handler
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processInputValue(e.target.value);
   };
 
   // Prevent default spacebar page scrolling and pass key to visualizer
@@ -257,15 +343,6 @@ export function TypingArea({
     }
   };
 
-  // Dynamic reactive speed border - refined, functional, zero-slop
-  const getSpeedAuraClass = () => {
-    if (testState !== 'running') return '';
-    if (liveWpm >= 85) return 'animate-speed-blaze border-amber-500';
-    if (liveWpm >= 65) return 'animate-lightning-surge border-sky-500';
-    if (liveWpm >= 45) return 'border-blue-500/70 shadow-2xs';
-    return '';
-  };
-
   // Quick sound profile switcher
   const soundProfiles: { id: SoundProfile; label: string }[] = [
     { id: 'mechanical', label: 'Mekanikal' },
@@ -274,24 +351,26 @@ export function TypingArea({
     { id: 'bubble', label: 'Bubble Pop' },
   ];
 
+  const paceDelta = testState === 'running' && paceTargetWpm > 0 ? liveWpm - paceTargetWpm : 0;
+
   return (
     <div className="w-full select-none relative">
-      {/* Top Bar: Interactive Combo Badge + Quick Sound Switcher */}
-      <div className="h-7 mb-1.5 flex items-center justify-between px-1">
-        {/* Left: Streak & Combo Meter */}
+      {/* Top Bar: Interactive Combo Meter + Pace Car Switcher + Quick Sound Switcher */}
+      <div className="min-h-7 mb-1.5 flex flex-wrap items-center justify-between gap-2 px-0.5">
+        {/* Left: Streak & Combo Meter / Auto-Focus Instruction */}
         <div className="flex items-center gap-2">
           {streak >= 3 ? (
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold transition-all duration-200 ${
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold transition-colors duration-150 ${
                 streak >= 20
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-amber-600 text-white'
                   : streak >= 10
-                  ? 'bg-amber-500 text-white shadow-xs'
+                  ? 'bg-amber-500 text-white'
                   : 'text-amber-800 bg-amber-100 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800'
               }`}
             >
               {streak >= 20 ? (
-                <Award className="h-3.5 w-3.5 animate-spin-once" />
+                <Award className="h-3.5 w-3.5" />
               ) : streak >= 10 ? (
                 <Zap className="h-3.5 w-3.5" />
               ) : (
@@ -303,27 +382,72 @@ export function TypingArea({
             </div>
           ) : (
             <div className="text-[11px] text-[var(--text-muted)] font-medium flex items-center gap-1">
-              <span>Ketik kata lalu tekan</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--bg-border)] text-[10px] font-mono shadow-2xs">
+              <span>Ketik huruf apa saja untuk langsung mulai · Tekan</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--bg-border)] text-[10px] font-mono">
                 Spasi
               </kbd>
+              <span>tiap kata</span>
             </div>
           )}
 
           {/* Floating pop animation on word complete */}
           {showPop && (
-            <div className="text-xs font-black text-green-700 dark:text-green-400 animate-float-pop flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5" />
+            <div className="text-xs font-bold text-green-700 dark:text-green-400 animate-float-pop flex items-center gap-1">
               <span>{popText}</span>
             </div>
           )}
         </div>
 
-        {/* Right: Quick Sound Switcher Pill */}
-        <div className="flex items-center gap-1 text-xs">
+        {/* Right: Pace Car Toggle + Focus Mode + Sound Switcher */}
+        <div className="flex items-center gap-1.5 text-xs flex-wrap">
+          {/* Pace Car / Kursor Bayangan Button */}
+          {onCyclePaceTarget && (
+            <button
+              type="button"
+              onClick={onCyclePaceTarget}
+              title="Ubah target Pace Car (Kursor Bayangan Lawan)"
+              className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                paceTargetWpm > 0
+                  ? 'border-amber-500/60 bg-amber-500/10 text-amber-800 dark:text-amber-300 font-semibold'
+                  : 'bg-[var(--bg-surface)] border-[var(--bg-border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              <Gauge className="h-3 w-3" />
+              <span>Pace: {paceTargetWpm > 0 ? `${paceLabel} (${paceTargetWpm} WPM)` : 'Mati'}</span>
+              {testState === 'running' && paceTargetWpm > 0 && (
+                <span
+                  className={`ml-1 font-mono tabular-nums font-bold ${
+                    paceDelta >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  ({paceDelta >= 0 ? `+${paceDelta}` : paceDelta})
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Auto Focus Mode Toggle */}
+          {onToggleFocusMode && (
+            <button
+              type="button"
+              onClick={onToggleFocusMode}
+              title="Mode Fokus Otomatis (Meredupkan navigasi saat mengetik)"
+              className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                focusModeEnabled
+                  ? 'border-[var(--color-accent)]/50 bg-[var(--bg-surface)] text-[var(--text-main)]'
+                  : 'bg-[var(--bg-surface)] border-[var(--bg-border)] text-[var(--text-muted)]'
+              }`}
+            >
+              <Eye className="h-3 w-3" />
+              <span>Fokus: {focusModeEnabled ? 'Aktif' : 'Mati'}</span>
+            </button>
+          )}
+
+          {/* Quick Sound Switcher */}
           {onUpdateSettings && (
-            <div className="flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--bg-border)] rounded-full px-2 py-0.5 shadow-2xs text-[11px]">
+            <div className="flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--bg-border)] rounded px-2 py-0.5 text-[11px]">
               <button
+                type="button"
                 onClick={() =>
                   onUpdateSettings({
                     ...settings,
@@ -336,7 +460,6 @@ export function TypingArea({
                 {settings.soundEnabled ? (
                   <div className="flex items-center gap-1 text-green-700 dark:text-green-400">
                     <Volume2 className="h-3.5 w-3.5" />
-                    {/* Animated Equalizer mini bars */}
                     <div className="flex items-end gap-[1.5px] h-3 w-3">
                       <span className={`w-[2px] bg-green-500 rounded-full ${isAudioBouncing ? 'animate-eq-1' : 'h-1.5'}`} />
                       <span className={`w-[2px] bg-green-500 rounded-full ${isAudioBouncing ? 'animate-eq-2' : 'h-2.5'}`} />
@@ -353,13 +476,14 @@ export function TypingArea({
                   {soundProfiles.map((p) => (
                     <button
                       key={p.id}
+                      type="button"
                       onClick={() => {
                         onUpdateSettings({ ...settings, soundProfile: p.id });
                         soundManager.playKey(0.4, p.id);
                       }}
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all cursor-pointer ${
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                         settings.soundProfile === p.id
-                          ? 'bg-[var(--color-accent)] text-white font-bold shadow-2xs'
+                          ? 'bg-[var(--color-accent)] text-white font-bold'
                           : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                       }`}
                       title={`Ganti suara ke ${p.label}`}
@@ -374,25 +498,26 @@ export function TypingArea({
         </div>
       </div>
 
-      {/* 10FastFingers Words Display Box (#words) with Speed Aura */}
+      {/* Clean Anti-AI-Slop Words Display Box (Zero Glow, Instant 1st-Line Scroll) */}
       <div
         ref={containerRef}
         onClick={focusInput}
-        className={`relative w-full cursor-text overflow-hidden rounded-md border px-5 py-4 sm:px-6 sm:py-4 transition-all duration-300 shadow-2xs ${getSpeedAuraClass()}`}
+        className="relative w-full cursor-text overflow-hidden rounded-md border px-5 py-4 sm:px-6 sm:py-4 transition-colors duration-150"
         style={{
           backgroundColor: 'var(--bg-surface)',
-          borderColor: 'var(--bg-border)',
-          height: '118px', // Taller height for generous vertical breathing space
+          borderColor: testState === 'running' ? 'var(--color-accent)' : 'var(--bg-border)',
+          height: '118px',
         }}
       >
         <div
           ref={wordsWrapperRef}
-          className={`flex flex-wrap items-center gap-x-4 gap-y-2 font-mono tracking-wide transition-transform duration-200 ease-out ${getFontSizeClass()}`}
+          className={`flex flex-wrap items-center gap-x-4 gap-y-2 font-mono tracking-wide transition-transform duration-150 ease-out ${getFontSizeClass()}`}
         >
           {words.map((word, wordIndex) => {
             const isCurrent = wordIndex === currentWordIndex;
             const isCompleted = wordIndex < currentWordIndex;
             const completedWord = isCompleted ? completedWords[wordIndex] : null;
+            const isGhostWord = ghostPosition?.wordIndex === wordIndex;
 
             if (isCurrent) {
               return (
@@ -401,11 +526,11 @@ export function TypingArea({
                   ref={(el) => {
                     wordRefs.current[wordIndex] = el;
                   }}
-                  className="relative inline-flex items-center px-2.5 py-1 rounded border-2 shadow-xs transition-all duration-150"
+                  className="relative inline-flex items-center px-2 py-0.5 rounded border-2 transition-colors duration-100"
                   style={{
                     backgroundColor: hasErrorInCurrentWord
-                      ? 'rgba(239, 68, 68, 0.16)'
-                      : 'rgba(37, 99, 235, 0.12)',
+                      ? 'rgba(239, 68, 68, 0.14)'
+                      : 'rgba(37, 99, 235, 0.10)',
                     borderColor: hasErrorInCurrentWord
                       ? 'var(--color-error)'
                       : 'var(--color-accent)',
@@ -417,6 +542,7 @@ export function TypingArea({
                     const isCaret = charIdx === typedChars.length;
                     const isTyped = charIdx < typedChars.length;
                     const isMatch = isTyped && typedChars[charIdx] === char;
+                    const isGhostChar = isGhostWord && ghostPosition?.charIndex === charIdx;
 
                     let charColor = 'var(--text-main)';
                     let extraClass = 'font-bold';
@@ -435,11 +561,16 @@ export function TypingArea({
                       <span key={charIdx} className="relative inline-block">
                         {isCaret && (
                           <span
-                            className="absolute -left-[1.5px] top-1 bottom-1 w-[2.5px] rounded-full animate-caret-blink shadow-xs transition-all duration-75"
+                            className="absolute -left-[1.5px] top-1 bottom-1 w-[2.5px] rounded-full animate-caret-blink"
                             style={{
                               backgroundColor: 'var(--color-caret)',
-                              boxShadow: '0 0 6px var(--color-caret)',
                             }}
+                          />
+                        )}
+                        {isGhostChar && (
+                          <span
+                            className="absolute -left-[1.5px] top-0.5 bottom-0.5 w-[2px] bg-amber-500/80 pointer-events-none"
+                            title={`Pace Car (${paceTargetWpm} WPM)`}
                           />
                         )}
                         <span
@@ -476,7 +607,6 @@ export function TypingArea({
                       className="inline-block w-[2.5px] h-6 ml-0.5 rounded-full animate-caret-blink"
                       style={{
                         backgroundColor: 'var(--color-caret)',
-                        boxShadow: '0 0 6px var(--color-caret)',
                       }}
                     />
                   )}
@@ -492,9 +622,9 @@ export function TypingArea({
                   ref={(el) => {
                     wordRefs.current[wordIndex] = el;
                   }}
-                  className={`inline-block px-1.5 py-0.5 transition-all duration-150 font-semibold ${
+                  className={`relative inline-block px-1.5 py-0.5 transition-colors duration-100 font-semibold ${
                     isCorrect ? '' : 'line-through opacity-85'
-                  }`}
+                  } ${isGhostWord ? 'border-b-2 border-dashed border-amber-500' : ''}`}
                   style={{
                     color: isCorrect ? 'var(--color-correct)' : 'var(--color-error)',
                   }}
@@ -504,17 +634,19 @@ export function TypingArea({
               );
             }
 
-            // Upcoming words - Always match active theme text color with high contrast
+            // Upcoming words
             return (
               <span
                 key={wordIndex}
                 ref={(el) => {
                   wordRefs.current[wordIndex] = el;
                 }}
-                className="inline-block px-1.5 py-0.5 font-semibold tracking-wide transition-colors"
+                className={`relative inline-block px-1.5 py-0.5 font-semibold tracking-wide transition-colors ${
+                  isGhostWord ? 'border-b-2 border-dashed border-amber-500 bg-amber-500/10 rounded-xs' : ''
+                }`}
                 style={{
                   color: 'var(--text-main)',
-                  opacity: 0.88,
+                  opacity: 0.9,
                 }}
               >
                 {word}
@@ -522,20 +654,6 @@ export function TypingArea({
             );
           })}
         </div>
-
-        {/* Flying spark particles on word completion */}
-        {sparks.map((spark) => (
-          <div
-            key={spark.id}
-            className="absolute pointer-events-none w-2 h-2 rounded-full animate-spark"
-            style={{
-              left: `calc(50% + ${spark.x}px)`,
-              top: `calc(50% + ${spark.y}px)`,
-              backgroundColor: spark.color,
-              boxShadow: `0 0 8px ${spark.color}`,
-            }}
-          />
-        ))}
       </div>
 
       {/* 10FastFingers Input + Timer + Reload Action Row */}
@@ -553,20 +671,20 @@ export function TypingArea({
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          className="flex-1 h-12 px-4 rounded-md border font-mono tracking-wide text-xl sm:text-2xl font-bold outline-none transition-all shadow-2xs focus:ring-2 focus:ring-[var(--color-accent)]"
+          className="flex-1 h-12 px-4 rounded-md border font-mono tracking-wide text-xl sm:text-2xl font-bold outline-none transition-colors focus:border-[var(--color-accent)]"
           style={{
             backgroundColor: hasErrorInCurrentWord ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-surface)',
             borderColor: hasErrorInCurrentWord ? 'var(--color-error)' : 'var(--bg-border)',
             color: hasErrorInCurrentWord ? 'var(--color-error)' : 'var(--text-main)',
           }}
-          placeholder=""
+          placeholder={testState === 'idle' ? 'Ketik di sini atau langsung tekan huruf...' : ''}
         />
 
-        {/* Timer Box with dynamic low-time pulse (< 10s) */}
+        {/* Timer Box */}
         <div
-          className={`h-12 min-w-[76px] sm:min-w-[84px] px-3 flex items-center justify-center rounded-md font-mono text-xl sm:text-2xl font-bold tracking-tight shadow-2xs select-none transition-all ${
+          className={`h-12 min-w-[76px] sm:min-w-[84px] px-3 flex items-center justify-center rounded-md font-mono tabular-nums text-xl sm:text-2xl font-bold tracking-tight select-none transition-colors ${
             timeLeft <= 10 && testState === 'running'
-              ? 'animate-pulse bg-red-600 text-white'
+              ? 'bg-red-600 text-white'
               : 'text-white'
           }`}
           style={{
@@ -578,16 +696,17 @@ export function TypingArea({
           {formatTimer(timeLeft)}
         </div>
 
-        {/* Reload Button with smooth hover and click spin */}
+        {/* Reload Button */}
         <button
+          type="button"
           onClick={onRestart}
-          title="Ulangi Tes (Shortcut: Tab + Enter)"
-          className="group h-12 w-12 flex items-center justify-center rounded-md text-white transition-all hover:opacity-90 active:scale-95 shadow-2xs cursor-pointer"
+          title="Ulangi Tes (Shortcut: Tab + Enter / Esc)"
+          className="group h-12 w-12 flex items-center justify-center rounded-md text-white transition-opacity hover:opacity-90 active:scale-95 cursor-pointer"
           style={{
             backgroundColor: 'var(--color-accent)',
           }}
         >
-          <RotateCcw className="h-5 w-5 transition-transform duration-300 group-hover:-rotate-90 group-active:-rotate-180" />
+          <RotateCcw className="h-5 w-5 transition-transform duration-200 group-hover:-rotate-90" />
         </button>
       </div>
     </div>

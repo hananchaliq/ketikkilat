@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan for KetikKilat, a modern Indonesian typing test application inspired by 10FastFingers with real-time rolling words, performance charts, themes, sound effects, and session history.",
-  "updatedAt": "2026-10-13T13:58:20.065975912Z",
-  "requestFeedback": true,
-  "userFacing": true
+  "summary":  "Rencana implementasi peningkatan KetikKilat: penghapusan efek glow (anti-AI-slop), pengguliran baris kata instan setelah baris pertama selesai, auto-focus otomatis saat mengetik huruf di mana saja, sistem Leaderboard persisten berbasis server dengan cukup input username + filter durasi & anti-cheat, indikator pengguna online real-time beserta status ketikan, fitur Pace Car (kursor bayangan target/rekor), serta Mode Fokus Otomatis.",
+  "updatedAt":  "2026-10-27T03:24:31.531763428Z",
+  "requestFeedback":  true,
+  "userFacing":  true
 }

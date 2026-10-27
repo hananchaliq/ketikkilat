@@ -10,10 +10,10 @@ import { ThemeModal } from '@/components/ThemeModal';
 import { HistoryModal } from '@/components/HistoryModal';
 import { GuideModal } from '@/components/GuideModal';
 import { KeyboardVisualizer } from '@/components/KeyboardVisualizer';
+import { OnlineLeaderboardPanel } from '@/components/OnlineLeaderboardPanel';
 import { generateWordList } from '@/lib/words';
 import { soundManager } from '@/lib/sound';
 import {
-  DEFAULT_SETTINGS,
   loadSettings,
   saveSettings,
   loadHistory,
@@ -21,6 +21,9 @@ import {
   clearHistory,
   deleteHistoryItem,
   getActiveTheme,
+  loadUsername,
+  saveUsername,
+  getOrCreateClientId,
 } from '@/lib/storage';
 import { applyThemeToDom } from '@/lib/themes';
 import {
@@ -30,7 +33,7 @@ import {
   PerformanceDataPoint,
   TestResult,
 } from '@/types/typing';
-import { RotateCcw, Trophy, Info, Keyboard } from 'lucide-react';
+import { LeaderboardEntry, OnlineUserPresence } from '@/lib/serverStore';
 
 export default function TypingApp() {
   const isMounted = React.useSyncExternalStore(
@@ -67,6 +70,24 @@ export default function TypingApp() {
   const [streak, setStreak] = useState(0);
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
+  // Focus Mode & Pace Car States
+  const [focusModeEnabled, setFocusModeEnabled] = useState(true);
+  const [isUserActivelyTyping, setIsUserActivelyTyping] = useState(false);
+  const [paceTargetWpm, setPaceTargetWpm] = useState<number>(0);
+  const [paceLabel, setPaceLabel] = useState<string>('Mati');
+
+  // Online Presence & Persistent Leaderboard States
+  const [username, setUsername] = useState<string>(() => loadUsername());
+  const [clientId] = useState<string>(() => getOrCreateClientId());
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUserPresence[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardDuration, setLeaderboardDuration] = useState<number>(() => loadSettings().timeDuration || 60);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+  const [leaderboardMessage, setLeaderboardMessage] = useState<{
+    type: 'success' | 'info' | 'error';
+    text: string;
+  } | null>(null);
+
   // Telemetry & Timing States
   const [timeLeft, setTimeLeft] = useState<number>(() => loadSettings().timeDuration);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -100,6 +121,11 @@ export default function TypingApp() {
   const currentWordIndexRef = useRef<number>(0);
   const currentInputRef = useRef<string>('');
   const performanceHistoryRef = useRef<PerformanceDataPoint[]>([]);
+  const usernameRef = useRef<string>(username);
+
+  useEffect(() => {
+    usernameRef.current = username;
+  }, [username]);
 
   // Keep wordsRef synced
   useEffect(() => {
@@ -111,6 +137,104 @@ export default function TypingApp() {
     applyThemeToDom(getActiveTheme(settings));
   }, [settings]);
 
+  // Restore UI visibility when mouse moves during Focus Mode
+  useEffect(() => {
+    if (!isUserActivelyTyping) return;
+    const handleMouseMove = () => {
+      setIsUserActivelyTyping(false);
+    };
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isUserActivelyTyping]);
+
+  // Fetch Leaderboard for selected duration
+  const fetchLeaderboard = useCallback(async (dur: number) => {
+    try {
+      const res = await fetch(`/api/leaderboard?duration=${dur}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.leaderboard)) {
+          setLeaderboard(data.leaderboard);
+        }
+      }
+    } catch {
+      // Ignore network error
+    } finally {
+      setIsLoadingLeaderboard(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const timer = setTimeout(() => {
+      fetchLeaderboard(leaderboardDuration);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isMounted, leaderboardDuration, fetchLeaderboard]);
+
+  // Submit score to persistent server leaderboard
+  const submitScoreToServer = useCallback(
+    async (resultToSubmit: TestResult, userToSubmit: string) => {
+      const cleanName = userToSubmit.trim();
+      if (cleanName.length < 2) return;
+
+      if (resultToSubmit.accuracy < 85) {
+        setLeaderboardMessage({
+          type: 'info',
+          text: `Skor ${resultToSubmit.wpm} WPM belum masuk Leaderboard karena akurasi ${resultToSubmit.accuracy}% (syarat minimal 85%).`,
+        });
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/leaderboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: cleanName,
+            wpm: resultToSubmit.wpm,
+            rawWpm: resultToSubmit.rawWpm,
+            accuracy: resultToSubmit.accuracy,
+            correctWords: resultToSubmit.correctWords,
+            incorrectWords: resultToSubmit.incorrectWords,
+            correctChars: resultToSubmit.correctChars,
+            duration: resultToSubmit.timeOption || resultToSubmit.duration,
+            difficulty: resultToSubmit.difficulty,
+          }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          if (resultToSubmit.timeOption === leaderboardDuration && Array.isArray(data.leaderboard)) {
+            setLeaderboard(data.leaderboard);
+          } else {
+            fetchLeaderboard(leaderboardDuration);
+          }
+
+          if (data.isNewRecord) {
+            setLeaderboardMessage({
+              type: 'success',
+              text: `Rekor Leaderboard baru untuk @${cleanName}: ${resultToSubmit.wpm} WPM (Peringkat #${data.rank || 1} di mode ${resultToSubmit.timeOption} Detik)!`,
+            });
+          } else {
+            setLeaderboardMessage({
+              type: 'info',
+              text: `Skor selesai: ${resultToSubmit.wpm} WPM. Rekor tertinggi @${cleanName} di Leaderboard tetap ${data.previousBestWpm} WPM (Peringkat #${data.rank || '-'}).`,
+            });
+          }
+        } else if (data.reason) {
+          setLeaderboardMessage({
+            type: 'error',
+            text: data.reason,
+          });
+        }
+      } catch {
+        // Ignore network error
+      }
+    },
+    [leaderboardDuration, fetchLeaderboard]
+  );
+
   // Finish Test - Reads directly from authoritative refs so results are accurate and never falsely inflated
   const finishTest = useCallback(() => {
     if (timerRef.current) {
@@ -121,6 +245,7 @@ export default function TypingApp() {
     if (testStateRef.current === 'completed') return;
     testStateRef.current = 'completed';
     setTestState('completed');
+    setIsUserActivelyTyping(false);
 
     // Count unfinished word keystrokes at the timer cutoff
     let pendingCorrect = 0;
@@ -128,7 +253,6 @@ export default function TypingApp() {
     const currentVal = currentInputRef.current.trim();
     const target = wordsRef.current[currentWordIndexRef.current] || '';
     if (currentVal.length > 0) {
-      // If the typed prefix matches the target word, credit those keystrokes; if mistyped, count as errors
       if (target.startsWith(currentVal)) {
         pendingCorrect = currentVal.length;
       } else {
@@ -145,7 +269,6 @@ export default function TypingApp() {
     const durationMin = durationSec / 60;
 
     // Standard 10FastFingers Net WPM: (correct keystrokes / 5) / minutes
-    // Mistyped words give 0 correct keystrokes, penalizing Net WPM appropriately!
     const finalWpm = Math.max(0, Math.round(finalCorrect / 5 / durationMin)) || 0;
     const rawWpm = Math.round(totalChars / 5 / durationMin) || 0;
     const finalAccuracy = totalChars > 0 ? Math.round((finalCorrect / totalChars) * 100) : 100;
@@ -177,7 +300,13 @@ export default function TypingApp() {
           ? [...performanceHistoryRef.current]
           : [
               { second: 0, wpm: 0, rawWpm: 0, accuracy: 100, errors: 0 },
-              { second: durationSec, wpm: finalWpm, rawWpm: finalWpm, accuracy: finalAccuracy, errors: finalIncorrect },
+              {
+                second: durationSec,
+                wpm: finalWpm,
+                rawWpm: finalWpm,
+                accuracy: finalAccuracy,
+                errors: finalIncorrect,
+              },
             ],
     };
 
@@ -192,13 +321,21 @@ export default function TypingApp() {
     if (settings.soundEnabled) {
       soundManager.playComplete(settings.soundVolume / 100);
     }
-  }, [settings, personalBest]);
 
-  // Start Test - Single interval with timestamp calculation: strictly 1 second per second!
+    // Automatically submit to persistent Leaderboard if username is set
+    if (usernameRef.current && usernameRef.current.trim().length >= 2) {
+      submitScoreToServer(result, usernameRef.current);
+    } else {
+      setLeaderboardMessage(null);
+    }
+  }, [settings, personalBest, submitScoreToServer]);
+
+  // Start Test - Single interval with timestamp calculation: strictly 1 second per second
   const startTest = useCallback(() => {
     if (testStateRef.current === 'running') return;
     testStateRef.current = 'running';
     setTestState('running');
+    setLeaderboardMessage(null);
 
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -256,22 +393,15 @@ export default function TypingApp() {
         const windowErrors = recentErrors.reduce((a, b) => a + b, 0);
         const windowDurationSec = Math.max(1, recentCorrect.length);
 
-        // Raw speed reflects gross keystrokes
-        const rollingRawWpm = Math.round(((windowCorrect + windowErrors) / 5) * (60 / windowDurationSec));
-
-        // Net speed strictly factors in errors: wrong keystrokes deduct speed
+        const rollingRawWpm = Math.round(
+          ((windowCorrect + windowErrors) / 5) * (60 / windowDurationSec)
+        );
         const rollingNetWpm = Math.max(
           0,
           Math.round(((windowCorrect - windowErrors) / 5) * (60 / windowDurationSec))
         );
+        const cumulativeNetWpm = Math.max(0, Math.round(currentCorrect / 5 / (elapsedSec / 60)));
 
-        // Cumulative Net WPM baseline
-        const cumulativeNetWpm = Math.max(
-          0,
-          Math.round(currentCorrect / 5 / (elapsedSec / 60))
-        );
-
-        // Blend instant responsive dip/climb with cumulative stability
         const instantWpm =
           elapsedSec <= 2
             ? rollingNetWpm
@@ -292,7 +422,6 @@ export default function TypingApp() {
         setPerformanceHistory([...performanceHistoryRef.current]);
       }
 
-      // Finish test exactly when remaining seconds hit 0
       if (remainingSec <= 0) {
         if (timerRef.current) {
           clearInterval(timerRef.current);
@@ -312,6 +441,7 @@ export default function TypingApp() {
       }
       testStateRef.current = 'idle';
       setTestState('idle');
+      setIsUserActivelyTyping(false);
 
       startTimeRef.current = 0;
       lastSampledSecRef.current = 0;
@@ -383,6 +513,10 @@ export default function TypingApp() {
     saveSettings(newSettings);
     applyThemeToDom(getActiveTheme(newSettings));
 
+    if (newSettings.timeDuration !== leaderboardDuration) {
+      setLeaderboardDuration(newSettings.timeDuration);
+    }
+
     if (testStateRef.current === 'idle') {
       setTimeLeft(newSettings.timeDuration);
       const generated = generateWordList(newSettings.difficulty, 300);
@@ -395,6 +529,7 @@ export default function TypingApp() {
   const handleInputChange = (val: string) => {
     currentInputRef.current = val;
     setCurrentInput(val);
+    setIsUserActivelyTyping(true);
     if (testStateRef.current === 'idle' && val.length > 0) {
       startTest();
     }
@@ -405,20 +540,19 @@ export default function TypingApp() {
     if (testStateRef.current === 'idle') {
       startTest();
     }
+    setIsUserActivelyTyping(true);
 
     const wordIdx = currentWordIndexRef.current;
     const targetWord = wordsRef.current[wordIdx] || '';
     const isWordCorrect = typedWord === targetWord;
 
     if (isWordCorrect) {
-      // 10FastFingers standard: correct word awards full keystrokes (letters + space)
       const correctChars = targetWord.length + 1;
       correctKeystrokesRef.current += correctChars;
       correctWordCountRef.current += 1;
       setCorrectWordCount(correctWordCountRef.current);
       setStreak((s) => s + 1);
     } else {
-      // 10FastFingers standard: mistyped word awards 0 correct keystrokes; all typed chars count as errors
       const errorChars = Math.max(typedWord.length, targetWord.length) + 1;
       incorrectKeystrokesRef.current += errorChars;
       incorrectWordCountRef.current += 1;
@@ -494,14 +628,86 @@ export default function TypingApp() {
   // Live real-time statistics calculation
   const currentDurationMin = Math.max(1, elapsedSeconds) / 60;
   const liveWpm =
-    elapsedSeconds > 0
-      ? Math.round(correctKeystrokes / 5 / currentDurationMin)
-      : 0;
+    elapsedSeconds > 0 ? Math.round(correctKeystrokes / 5 / currentDurationMin) : 0;
   const totalTypedKeystrokes = correctKeystrokes + incorrectKeystrokes;
   const liveAccuracy =
     totalTypedKeystrokes > 0
       ? Math.round((correctKeystrokes / totalTypedKeystrokes) * 100)
       : 100;
+
+  // Real-Time Online Presence Heartbeat
+  const sendPresenceHeartbeat = useCallback(async () => {
+    if (!clientId) return;
+    try {
+      const statusPayload =
+        testState === 'running'
+          ? 'typing'
+          : testState === 'completed'
+          ? 'completed'
+          : 'idle';
+
+      const res = await fetch('/api/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId,
+          username: username || 'PengetikAnonim',
+          status: statusPayload,
+          liveWpm: testState === 'completed' && testResult ? testResult.wpm : liveWpm,
+          accuracy: testState === 'completed' && testResult ? testResult.accuracy : liveAccuracy,
+          duration: settings.timeDuration,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.users)) {
+          setOnlineUsers(data.users);
+        }
+      }
+    } catch {
+      // Ignore network hiccup
+    }
+  }, [clientId, username, testState, testResult, liveWpm, liveAccuracy, settings.timeDuration]);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const initTimer = setTimeout(sendPresenceHeartbeat, 0);
+    const interval = setInterval(sendPresenceHeartbeat, 6000);
+    return () => {
+      clearTimeout(initTimer);
+      clearInterval(interval);
+    };
+  }, [isMounted, sendPresenceHeartbeat]);
+
+  // Update Username Handler
+  const handleUpdateUsername = (newName: string) => {
+    setUsername(newName);
+    saveUsername(newName);
+    usernameRef.current = newName;
+    if (testResult && testState === 'completed') {
+      submitScoreToServer(testResult, newName);
+    }
+  };
+
+  // Cycle Pace Car Target WPM
+  const handleCyclePaceTarget = () => {
+    const topLbWpm = leaderboard.length > 0 ? leaderboard[0].wpm : 95;
+    const topLbName = leaderboard.length > 0 ? leaderboard[0].username : 'Top #1';
+
+    if (paceTargetWpm === 0) {
+      setPaceTargetWpm(60);
+      setPaceLabel('Target Cepat');
+    } else if (paceTargetWpm === 60 && personalBest > 0 && personalBest !== 60) {
+      setPaceTargetWpm(personalBest);
+      setPaceLabel('Rekor Pribadi');
+    } else if (paceTargetWpm !== topLbWpm) {
+      setPaceTargetWpm(topLbWpm);
+      setPaceLabel(`#1 ${topLbName}`);
+    } else {
+      setPaceTargetWpm(0);
+      setPaceLabel('Mati');
+    }
+  };
 
   // History Actions
   const handleClearAllHistory = () => {
@@ -524,45 +730,56 @@ export default function TypingApp() {
     return null;
   }
 
+  const isFocusDimmed = focusModeEnabled && testState === 'running' && isUserActivelyTyping;
+
   return (
     <div className="flex min-h-screen flex-col font-sans transition-colors duration-200">
-      {/* 10FastFingers Navbar */}
-      <Navbar
-        activeTab={activeNavTab}
-        setActiveTab={(tab) => {
-          setActiveNavTab(tab);
-          if (tab === 'history') setIsHistoryOpen(true);
-          if (tab === 'guide') setIsGuideOpen(true);
-          if (tab === 'practice' || tab === 'test') {
-            resetTest();
-          }
-        }}
-        settings={settings}
-        onUpdateSettings={handleUpdateSettings}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenThemes={() => setIsThemeOpen(true)}
-        onOpenHistory={() => setIsHistoryOpen(true)}
-        onOpenGuide={() => setIsGuideOpen(true)}
-        onRestartTest={() => resetTest()}
-        testRunning={testState === 'running'}
-      />
+      {/* Navbar with Focus Mode dimming */}
+      <div className={`transition-opacity duration-300 ${isFocusDimmed ? 'opacity-25 hover:opacity-100' : 'opacity-100'}`}>
+        <Navbar
+          activeTab={activeNavTab}
+          setActiveTab={(tab) => {
+            setActiveNavTab(tab);
+            if (tab === 'history') setIsHistoryOpen(true);
+            if (tab === 'guide') setIsGuideOpen(true);
+            if (tab === 'practice' || tab === 'test') {
+              resetTest();
+            }
+          }}
+          settings={settings}
+          onUpdateSettings={handleUpdateSettings}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenThemes={() => setIsThemeOpen(true)}
+          onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenGuide={() => setIsGuideOpen(true)}
+          onRestartTest={() => resetTest()}
+          testRunning={testState === 'running'}
+        />
+      </div>
 
-      {/* Main Container - Width 800px-840px matching 10FastFingers */}
+      {/* Main Container */}
       <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
         {/* Page Title & Subtitle */}
-        <div className="mb-4">
+        <div
+          className={`mb-4 transition-opacity duration-300 ${
+            isFocusDimmed ? 'opacity-25 hover:opacity-100' : 'opacity-100'
+          }`}
+        >
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-main)] font-sans">
             Tes Mengetik Bahasa Indonesia
           </h1>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Uji dan tingkatkan kecepatan mengetik kata-kata Bahasa Indonesia (WPM) dalam 60 detik.
+            Uji dan tingkatkan kecepatan mengetik kata-kata Bahasa Indonesia (WPM) secara presisi.
           </p>
         </div>
 
-        {/* 10FastFingers Mode Options Strip */}
+        {/* Mode Options Strip */}
         {testState !== 'completed' && (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-            {/* Mode selection buttons */}
+          <div
+            className={`mb-3 flex flex-wrap items-center justify-between gap-2 text-xs transition-opacity duration-300 ${
+              isFocusDimmed ? 'opacity-25 hover:opacity-100' : 'opacity-100'
+            }`}
+          >
             <div className="flex items-center gap-1.5">
               {[
                 { label: '60 Detik', dur: 60 },
@@ -571,6 +788,7 @@ export default function TypingApp() {
               ].map((btn) => (
                 <button
                   key={btn.dur}
+                  type="button"
                   onClick={() => {
                     handleUpdateSettings({
                       ...settings,
@@ -579,7 +797,7 @@ export default function TypingApp() {
                     });
                     resetTest();
                   }}
-                  className={`px-3 py-1 rounded text-xs transition-colors cursor-pointer border ${
+                  className={`px-3 py-1 rounded text-xs transition-colors cursor-pointer border whitespace-nowrap shrink-0 ${
                     settings.mode === 'time' && settings.timeDuration === btn.dur
                       ? 'bg-[var(--color-accent)] text-white border-transparent font-semibold'
                       : 'border-[var(--bg-border)] text-[var(--text-muted)] hover:text-[var(--text-main)] bg-[var(--bg-surface)]'
@@ -592,6 +810,7 @@ export default function TypingApp() {
               <span className="text-[var(--bg-border)] px-1">|</span>
 
               <button
+                type="button"
                 onClick={() => {
                   const nextDiff =
                     settings.difficulty === 'easy'
@@ -602,20 +821,29 @@ export default function TypingApp() {
                   handleUpdateSettings({ ...settings, difficulty: nextDiff });
                   resetTest();
                 }}
-                className="px-2.5 py-1 rounded text-xs border border-[var(--bg-border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer capitalize"
+                className="px-2.5 py-1 rounded text-xs border border-[var(--bg-border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer capitalize whitespace-nowrap shrink-0"
                 title="Beralih tingkat kosakata"
               >
                 Tingkat: <strong className="text-[var(--text-main)]">{settings.difficulty}</strong>
               </button>
             </div>
 
-            {/* Personal Best Info */}
-            {personalBest > 0 && (
-              <div className="text-xs text-[var(--text-muted)] font-sans">
-                Rekor Terbaik:{' '}
-                <strong className="text-[var(--color-accent)]">{personalBest} WPM</strong>
-              </div>
-            )}
+            {/* Personal Best & Username Summary */}
+            <div className="flex items-center gap-3 text-xs text-[var(--text-muted)] font-sans">
+              {username && (
+                <span>
+                  Pengetik: <strong className="text-[var(--text-main)]">@{username}</strong>
+                </span>
+              )}
+              {personalBest > 0 && (
+                <span>
+                  Rekor Terbaik:{' '}
+                  <strong className="text-[var(--color-accent)] font-mono tabular-nums">
+                    {personalBest} WPM
+                  </strong>
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -636,7 +864,7 @@ export default function TypingApp() {
           showLiveAccuracy={settings.liveAccuracy}
         />
 
-        {/* View Switch: Active Typing Test vs 10FastFingers Result Screen */}
+        {/* View Switch: Active Typing Test vs Result Screen */}
         {testState === 'completed' && testResult ? (
           <ResultsView
             result={testResult}
@@ -647,6 +875,9 @@ export default function TypingApp() {
             onChangeWords={() => resetTest(generateWordList(settings.difficulty, 300))}
             onOpenHistory={() => setIsHistoryOpen(true)}
             onPracticeMistakes={handlePracticeMistakes}
+            username={username}
+            onSubmitToLeaderboard={(newUsername) => handleUpdateUsername(newUsername)}
+            leaderboardStatus={leaderboardMessage}
           />
         ) : (
           <div className="flex flex-col gap-1">
@@ -666,6 +897,11 @@ export default function TypingApp() {
               liveWpm={liveWpm}
               onUpdateSettings={handleUpdateSettings}
               onKeyActivity={(k) => setActiveKey(k)}
+              paceTargetWpm={paceTargetWpm}
+              paceLabel={paceLabel}
+              onCyclePaceTarget={handleCyclePaceTarget}
+              focusModeEnabled={focusModeEnabled}
+              onToggleFocusMode={() => setFocusModeEnabled((f) => !f)}
             />
 
             <KeyboardVisualizer
@@ -679,80 +915,104 @@ export default function TypingApp() {
           </div>
         )}
 
-        {/* Authentic 10FastFingers Content Below the Test */}
-        <div className="mt-8 pt-6 border-t space-y-6 text-sm" style={{ borderColor: 'var(--bg-border)' }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left: About Indonesian Typing Test */}
-            <div
-              className="rounded-md border p-4 sm:p-5"
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                borderColor: 'var(--bg-border)',
-              }}
-            >
-              <h3 className="font-bold text-base text-[var(--text-main)] mb-2">
-                Tentang Tes Mengetik KetikKilat
-              </h3>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
-                Tes ini mengukur seberapa banyak kata Bahasa Indonesia yang dapat Anda ketik secara tepat dan berirama dalam waktu 60 detik. Kosakata yang disajikan diambil dari kumpulan kata-kata bahasa Indonesia yang paling sering digunakan sehari-hari.
-              </p>
-              <ul className="text-xs text-[var(--text-muted)] space-y-1.5 list-disc pl-4">
-                <li>
-                  <strong className="text-[var(--text-main)]">Spasi:</strong> Menyelesaikan kata dan lanjut ke kata berikutnya.
-                </li>
-                <li>
-                  <strong className="text-[var(--text-main)]">Kata Benar:</strong> Ditandai dengan warna hijau.
-                </li>
-                <li>
-                  <strong className="text-[var(--text-main)]">Kata Salah:</strong> Ditandai dengan warna merah.
-                </li>
-                <li>
-                  <strong className="text-[var(--text-main)]">Tab + Enter / Esc:</strong> Mengulang sesi tes seketika.
-                </li>
-              </ul>
-            </div>
+        {/* Online Users & Persistent Leaderboard Section */}
+        <div
+          className={`transition-opacity duration-300 ${
+            isFocusDimmed ? 'opacity-20 hover:opacity-100' : 'opacity-100'
+          }`}
+        >
+          <OnlineLeaderboardPanel
+            username={username}
+            onUpdateUsername={handleUpdateUsername}
+            onlineUsers={onlineUsers}
+            leaderboard={leaderboard}
+            selectedDuration={leaderboardDuration}
+            onSelectDuration={(dur) => setLeaderboardDuration(dur)}
+            isLoadingLeaderboard={isLoadingLeaderboard}
+            onRefreshLeaderboard={() => fetchLeaderboard(leaderboardDuration)}
+            lastSubmissionMessage={leaderboardMessage}
+            paceTargetWpm={paceTargetWpm}
+            onSetPaceTarget={(wpm, label) => {
+              setPaceTargetWpm(wpm);
+              setPaceLabel(wpm > 0 ? label : 'Mati');
+            }}
+          />
 
-            {/* Right: WPM Speed Scale Table */}
-            <div
-              className="rounded-md border p-4 sm:p-5"
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                borderColor: 'var(--bg-border)',
-              }}
-            >
-              <h3 className="font-bold text-base text-[var(--text-main)] mb-2">
-                Skala Kecepatan Mengetik (WPM)
-              </h3>
-              <table className="w-full text-xs font-sans">
-                <thead>
-                  <tr className="border-b text-left text-[var(--text-muted)]" style={{ borderColor: 'var(--bg-border)' }}>
-                    <th className="py-1.5 font-semibold">Kecepatan</th>
-                    <th className="py-1.5 font-semibold">Kategori</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y" style={{ borderColor: 'var(--bg-border)' }}>
-                  <tr>
-                    <td className="py-1.5 font-medium font-mono tabular-nums">&lt; 25 WPM</td>
-                    <td className="py-1.5 text-[var(--text-muted)]">Pemula / Lambat</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 font-medium font-mono tabular-nums">25 – 45 WPM</td>
-                    <td className="py-1.5 text-[var(--text-muted)]">Rata-rata Normal</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 font-medium font-mono tabular-nums">45 – 65 WPM</td>
-                    <td className="py-1.5 text-[var(--text-muted)]">Cepat & Produktif</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 font-medium font-mono tabular-nums">65 – 85 WPM</td>
-                    <td className="py-1.5 text-[var(--text-muted)]">Sangat Cepat</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 font-medium font-mono tabular-nums font-bold text-green-700 dark:text-green-400">&gt; 85 WPM</td>
-                    <td className="py-1.5 text-green-700 dark:text-green-400 font-semibold">Master / Profesional</td>
-                  </tr>
-                </tbody>
-              </table>
+          {/* Authentic Content Below the Leaderboard */}
+          <div className="mt-6 pt-6 border-t space-y-6 text-sm" style={{ borderColor: 'var(--bg-border)' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left: About Indonesian Typing Test */}
+              <div
+                className="rounded-md border p-4 sm:p-5"
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  borderColor: 'var(--bg-border)',
+                }}
+              >
+                <h3 className="font-bold text-base text-[var(--text-main)] mb-2">
+                  Tentang Tes Mengetik KetikKilat
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
+                  Tes ini mengukur seberapa banyak kata Bahasa Indonesia yang dapat Anda ketik secara tepat dan berirama. Baris kata otomatis bergulir setiap selesai satu baris, dan Anda dapat langsung mengetik huruf tanpa perlu mengklik kotak teks terlebih dahulu.
+                </p>
+                <ul className="text-xs text-[var(--text-muted)] space-y-1.5 list-disc pl-4">
+                  <li>
+                    <strong className="text-[var(--text-main)]">Auto-Focus Instan:</strong> Tekan huruf apa saja untuk langsung memulai.
+                  </li>
+                  <li>
+                    <strong className="text-[var(--text-main)]">Spasi:</strong> Menyelesaikan kata dan lanjut ke kata berikutnya.
+                  </li>
+                  <li>
+                    <strong className="text-[var(--text-main)]">Pace Car:</strong> Kursor bayangan untuk balapan melawan rekor pribadi atau lawan di Leaderboard.
+                  </li>
+                  <li>
+                    <strong className="text-[var(--text-main)]">Tab + Enter / Esc:</strong> Mengulang sesi tes seketika.
+                  </li>
+                </ul>
+              </div>
+
+              {/* Right: WPM Speed Scale Table */}
+              <div
+                className="rounded-md border p-4 sm:p-5"
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  borderColor: 'var(--bg-border)',
+                }}
+              >
+                <h3 className="font-bold text-base text-[var(--text-main)] mb-2">
+                  Skala Kecepatan Mengetik (WPM)
+                </h3>
+                <table className="w-full text-xs font-sans">
+                  <thead>
+                    <tr className="border-b text-left text-[var(--text-muted)]" style={{ borderColor: 'var(--bg-border)' }}>
+                      <th className="py-1.5 font-semibold">Kecepatan</th>
+                      <th className="py-1.5 font-semibold">Kategori</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: 'var(--bg-border)' }}>
+                    <tr>
+                      <td className="py-1.5 font-medium font-mono tabular-nums">&lt; 25 WPM</td>
+                      <td className="py-1.5 text-[var(--text-muted)]">Pemula / Lambat</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1.5 font-medium font-mono tabular-nums">25 – 45 WPM</td>
+                      <td className="py-1.5 text-[var(--text-muted)]">Rata-rata Normal</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1.5 font-medium font-mono tabular-nums">45 – 65 WPM</td>
+                      <td className="py-1.5 text-[var(--text-muted)]">Cepat &amp; Produktif</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1.5 font-medium font-mono tabular-nums">65 – 85 WPM</td>
+                      <td className="py-1.5 text-[var(--text-muted)]">Sangat Cepat</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1.5 font-medium font-mono tabular-nums font-bold text-green-700 dark:text-green-400">&gt; 85 WPM</td>
+                      <td className="py-1.5 text-green-700 dark:text-green-400 font-semibold">Master / Profesional</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -760,7 +1020,9 @@ export default function TypingApp() {
 
       {/* Footer */}
       <footer
-        className="w-full border-t py-4 text-center text-xs transition-colors mt-auto"
+        className={`w-full border-t py-4 text-center text-xs transition-all duration-300 mt-auto ${
+          isFocusDimmed ? 'opacity-20 hover:opacity-100' : 'opacity-100'
+        }`}
         style={{
           borderColor: 'var(--bg-border)',
           color: 'var(--text-muted)',
@@ -769,7 +1031,7 @@ export default function TypingApp() {
       >
         <div className="max-w-4xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            KetikKilat &copy; {new Date().getFullYear()} — Platform Latihan & Tes Kecepatan Mengetik Indonesia
+            KetikKilat &copy; {new Date().getFullYear()} — Platform Latihan &amp; Tes Kecepatan Mengetik Indonesia
           </div>
           <div className="flex items-center gap-3">
             <button

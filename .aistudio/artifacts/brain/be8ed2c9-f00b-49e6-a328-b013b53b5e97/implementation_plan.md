@@ -1,143 +1,48 @@
-# KetikKilat - Modern Indonesian Typing Test & Speed Trainer
+# Rencana Implementasi Pembaruan KetikKilat
 
-Website latihan mengetik dan tes kecepatan mengetik Bahasa Indonesia modern dengan mekanisme rolling line khas 10FastFingers, kalkulasi akurat live WPM/keakuratan, visualisasi grafik performa interaktif, engine tema adaptif, efek suara keyboard mekanikal Web Audio API, serta pelacak riwayat sesi lokal.
-
-## User Review & Critical Decisions
-
-> [!IMPORTANT]
-> Keputusan hasil klarifikasi Fase 1 telah diintegrasikan:
-> - **Branding**: `KetikKilat` — desain modern, gesit, dan fokus produktivitas.
-> - **Word Display**: Pola klasik 10FastFingers berupa viewport 2-baris dengan deteksi offset baris otomatis dan pergeseran vertikal halus saat berpindah baris.
-> - **Audio Feedback**: Efek suara ketikan keyboard mekanikal realistis yang disintesis langsung menggunakan Web Audio API bawaan browser (zero-latency, tanpa file audio eksternal yang lambat dimuat), aktif secara default dengan tombol toggle mute dan slider volume.
-
-- **Mode Standar & Kosakata**: Memulai pada durasi standar 60 detik dengan kosakata Bahasa Indonesia terkurasi (>600 kata dasar dan imbuhan umum), dapat beralih ke 15s, 30s, 120s, custom duration, atau Word Mode (10, 25, 50, 100 kata).
-- **Grafik Interaktif**: Menggunakan visualisasi grafik garis SVG interaktif berbasis data runtun waktu asli tiap detik (time vs WPM & time vs accuracy), dilengkapi titik hover, tooltip akurat, dan integrasi palet warna tema aktif.
+Rencana ini mencakup penyempurnaan pengalaman mengetik, pembersihan visual dari efek glow berlebih (*anti-AI-slop*), serta penambahan fitur komunitas real-time (Pengguna Online & Papan Peringkat / Leaderboard persisten berbasis username) tanpa mengubah fungsi inti yang sudah berjalan.
 
 ---
 
-## 1. Overview & Core Concept
-
-- **Apa yang Dibangun**: Platform web latihan dan tes kecepatan mengetik Bahasa Indonesia dengan pengalaman mengetik instan tanpa distraksi, kata-kata bergulir dua baris, feedback warna karakter langsung (benar/salah), kalkulasi WPM standar industri ($\text{WPM} = \frac{\text{Karakter Benar}}{5 \times \text{Menit}}$), ringkasan metrik mendalam pasca tes, dan riwayat perkembangan tersimpan lokal.
-- **Target Pengguna**: Siswa, mahasiswa, pekerja kantor, programmer, serta enthusiast pengetikan yang ingin menguji dan meningkatkan akurasi serta kecepatan mengetik 10 jari dalam Bahasa Indonesia.
-- **Nilai Tambah**: Pengalaman responsif tanpa lag, desain visual modern tanpa elemen AI generic murahan (anti-slop), sistem tema CSS variables dengan color picker kustom, audio ketikan mekanikal yang memuaskan, dan grafik performa nyata tanpa data manipulasi.
-
----
-
-## 2. User Experience & Visual Design
-
-### A. Alur Pengguna Utama (Key User Flows)
-1. **Lobi & Mulai Cepat**: Halaman terbuka dengan area kata 2-baris terfokus. Begitu pengguna menekan tombol karakter pertama, timer otomatis berjalan, live WPM mulai dihitung, dan audio klik mekanikal berbunyi.
-2. **Sesi Mengetik (Active Test)**:
-   - Kata aktif disorot dengan latar aksen halus.
-   - Karakter yang sedang diketik diperiksa secara real-time: karakter benar berwarna tajam, karakter salah berwarna kontras merah/oranye.
-   - Menekan `Space` menyelesaikan kata aktif dan beralih ke kata berikutnya.
-   - Jika pengguna berada di akhir baris, kata-kata bergeser ke atas secara halus sehingga baris berikutnya naik menjadi baris aktif (replikasi presisi mekanisme 10FastFingers).
-   - Live baris statistik menunjukkan WPM, Akurasi, dan Sisa Waktu dengan angka tabular tanpa loncatan layout.
-3. **Hasil & Evaluasi**:
-   - Begitu waktu habis atau kata terakhir diselesaikan, input dinonaktifkan seketika.
-   - Layar hasil menampilkan Skor Utama (WPM Besar), Akurasi %, Karakter Benar/Salah, Kata Benar/Salah, dan Rekor Terbaik (Personal Best).
-   - Grafik garis performa interaktif memvisualisasikan ritme WPM per detik selama durasi tes.
-   - Tombol aksi cepat: *Coba Lagi (`Tab` + `Enter` atau tombol restart)*, *Ganti Kata*, *Salin Hasil*, dan *Buka Riwayat*.
-4. **Kustomisasi Tema & Pengaturan**:
-   - Tombol tema di header membuka panel preset (Dark, Light, Midnight, OLED Black, Sepia, Kustom).
-   - Pengaturan kustom mendukung color picker untuk Accent, Background, Panel, Text, Correct, Error, Caret, dan Garis Grafik.
-   - Pengaturan font, ukuran teks, mode kesulitan (Mudah, Normal, Mahir), dan volume suara.
-
-### B. Identitas Visual & Desain Bersih (Anti-Slop Restraint)
-- **Palette & Contrast**:
-  - Base Dark: Background `#0A0A0C` / `#0F1117`, Surface `#161922`, Border `#252A37`.
-  - Accent: Electric Cyan `#00F0FF` atau Emerald `#10B981` (dapat diubah dinamis lewat CSS variables `--bg-app`, `--bg-surface`, `--color-accent`, `--color-correct`, `--color-error`, `--color-caret`).
-  - Text: Teks utama kontras tinggi, teks kata belum diketik abu-abu netral teredam (`opacity: 0.5`).
-- **Tipografi**:
-  - Display/Judul: Sans-serif modern dan bersih (`Plus Jakarta Sans` / modern system neo-grotesque).
-  - Teks Mengetik & Statistik: Font monospace / tabular yang nyaman dibaca (`JetBrains Mono`, `IBM Plex Mono`, `font-mono tabular-nums`) untuk menghilangkan jitter saat angka berubah.
-- **Disiplin Desain**:
-  - Tanpa badge pil bersarang berlebihan (*Zero-Pill discipline*).
-  - Tanpa teks hiasan robotik `// 01_EXECUTION` atau status palsu.
-  - Border hairline 1px tipis, radius konsisten (8px - 12px), elevasi tunggal bersih.
+## 1. Pembersihan Visual & Penghapusan Efek Glow (Anti-AI-Slop)
+- **Penghapusan Speed Aura & Box-Shadow Glow (`components/TypingArea.tsx` & `app/globals.css`)**:
+  - Menghapus fungsi `getSpeedAuraClass()` beserta animasi glow `.animate-speed-blaze` dan `.animate-lightning-surge` pada kotak kata.
+  - Menghapus `boxShadow` glow pada kursor/caret (`0 0 6px var(--color-caret)`) dan partikel percikan berlebih agar kotak teks tampil bersih, tajam, dan fokus pada keterbacaan huruf.
+  - Menggunakan perubahan warna border tipis yang tegas (1px/2px solid) tanpa pendaran cahaya kabur saat mengetik cepat.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
-
-- **Mekanisme Word Scrolling 2-Baris (10FastFingers Classic)**:
-  - *Pendekatan Terpilih*: Wadah dengan tinggi tetap 2 baris teks kata (`overflow-hidden`). Deteksi posisi `offsetTop` pada kata aktif; ketika kata aktif berpindah ke baris kedua dan mencapai titik tertentu, kalkulasi transform `translateY` menggeser container secara instan/halus per baris.
-  - *Alasan*: Pola ini terbukti paling ergonomis bagi pengetik cepat karena mata tetap berada di zona pandang horizontal yang konsisten tanpa scrolling halaman browser.
-- **Audio Synthesis Menggunakan Web Audio API**:
-  - *Pendekatan Terpilih*: Generator sintesis suara `AudioContext` lokal (kombinasi low-pass filtered click pulse + resonant metallic ping).
-  - *Alasan*: Menghindari masalah loading file `.mp3` eksternal yang rentan gagal di sandbox atau menimbulkan latency jaringan; respon suara seketika di bawah 5ms per keystroke.
-- **Pengukuran Data Grafik Aktual Per Detik**:
-  - *Pendekatan Terpilih*: Interval snapshot 1000ms mencatat `timestamp`, `currentWpm`, dan `accuracy` secara berkala selama tes berjalan.
-  - *Alasan*: Menjamin bahwa grafik mencerminkan kurva akselerasi dan kelelahan pengguna yang sebenarnya, bukan kurva acak buatan.
-- **Penyimpanan Lokal (localStorage) Tanpa Server Auth**:
-  - *Pendekatan Terpilih*: Riwayat tersimpan di `localStorage` dengan penanganan hydration safe (`useEffect` / client-side only read).
-  - *Alasan*: Privasi penuh, kecepatan maksimal, bekerja offline (PWA-ready), dan tanpa hambatan login.
+## 2. Pengguliran Baris Kata Instan (Immediate Line Scroll)
+- **Naik Otomatis Begitu Baris Pertama Selesai (`components/TypingArea.tsx`)**:
+  - Mengubah logika `useLayoutEffect` pengguliran baris pada `wordsWrapperRef`: sebelumnya menunggu kata berpindah ke baris ke-3 (`lineDelta > 65`), kini langsung menggeser `translateY(-${lineDelta}px)` tepat saat `currentWordIndex` berpindah ke kata pertama di baris ke-2 (`lineDelta > 20`).
+  - Hasilnya: baris aktif yang sedang diketik **selalu berada di baris paling atas** kotak teks, sehingga mata pengguna tidak perlu berpindah baris dan kata-kata di baris bawah langsung naik seketika setelah baris pertama selesai.
 
 ---
 
-## 4. Technical Architecture & Data Strategy
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        KetikKilat Application                          │
-├────────────────────────────────────────────────────────────────────────┤
-│  Top Bar: Brand Wordmark │ Mode & Duration Selectors │ Theme & Settings│
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Live Header: Timer (60s) │ Live WPM │ Live Accuracy │ Restart    │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│                                                                        │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ 2-Line Rolling Word Box (10FastFingers Engine)                   │  │
-│  │ [selamat] [pagi] [dunia] [dan] [semua] [orang] [yang] [sedang]   │  │
-│  │  Active: [kata...]  (Correct: green, Error: red, Caret: blinking)│  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│                                                                        │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Hidden / Synchronized Active Keyboard Input (<input>)            │  │
-│  │ Handles keystrokes, spaces, backspaces, and mobile touch tap     │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│                                                                        │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Results Modal / Screen (When Timer Hits 0 or Target Words Done)  │  │
-│  │ ├─ Key Metrics: WPM Hero, Net WPM, Accuracy, Keystrokes, Words   │  │
-│  │ ├─ Interactive SVG Performance Timeline Chart (WPM & Acc vs Sec) │  │
-│  │ └─ Action Bar: [Coba Lagi] [Salin Ringkasan] [Lihat Riwayat]     │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│                                                                        │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Settings Drawer & Custom Theme Editor                            │  │
-│  │ ├─ Theme Presets & Hex Color Pickers (CSS Vars sync)             │  │
-│  │ ├─ Mechanical Sound Synthesizer Controls (Volume & Mute)         │  │
-│  │ └─ Vocabulary Difficulty (Mudah, Normal, Mahir)                  │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-### Komponen & Modul Kunci:
-1. `src/data/words-id.ts`: Bank kata Bahasa Indonesia (>600 kata) terbagi berdasarkan tingkat kesulitan (Umum, Menengah, Kompleks).
-2. `src/lib/sound.ts`: Mesin sintesis suara Web Audio API (mechanical click, spacebar thud, error beep).
-3. `src/lib/typing-engine.ts`: Helper kalkulasi WPM bersih, WPM kotor, akurasi, dan pemotongan kata.
-4. `src/types/index.ts`: Definisi tipe data sesi tes, tema, data titik grafik, dan riwayat.
-5. `src/components/TypingArea.tsx`: Komponen inti 2 baris dengan pergeseran otomatis dan input sinkron.
-6. `src/components/PerformanceChart.tsx`: Komponen grafik garis SVG interaktif dengan tooltip dan grid responsif.
-7. `src/components/ResultsView.tsx`: Tampilan hasil tes terperinci dengan rekor personal dan perbandingan sesi.
-8. `src/components/ThemeManager.tsx`: Engine tema dinamis pengubah CSS custom properties secara instan.
-9. `src/components/HistoryModal.tsx`: Riwayat sesi lengkap dan statistik rata-rata pengguna.
-10. `src/components/SettingsModal.tsx`: Pengaturan durasi, mode, suara, font, dan kustomisasi warna.
+## 3. Auto-Focus Instan Saat Menekan Huruf Apa Saja (Global Key Capture)
+- **Ketik Langsung Tanpa Perlu Klik Kotak Input (`components/TypingArea.tsx` & `app/page.tsx`)**:
+  - Menambahkan pendengar `keydown` global pada `window` ketika status tes `idle` atau `running` dan tidak ada modal/input lain (seperti kolom input username) yang sedang aktif (`document.activeElement`).
+  - Saat pengguna menekan tombol huruf/karakter tunggal (`e.key.length === 1` tanpa `ctrlKey`/`metaKey`/`altKey`), aplikasi otomatis memfokuskan `inputRef.current`, memasukkan huruf pertama tersebut ke state input, dan langsung memulai sesi ketik tanpa kehilangan huruf pertama yang ditekan.
 
 ---
 
-## 5. Rencana Pengujian & Kriteria Selesai (Verification Checklist)
+## 4. Fitur Tambahan Maksimal: Pace Car (Kursor Bayangan) & Mode Fokus Otomatis
+- **Pace Car / Kursor Bayangan Target (`components/TypingArea.tsx`)**:
+  - Menampilkan penanda bayangan (*ghost caret/highlight* tipis) yang bergerak secara proporsional di sepanjang kata sesuai kecepatan target (bisa dipilih: Rekor Terbaik Pribadi, Pemuncak Leaderboard, atau Target WPM tertentu).
+  - Membantu pengguna merasakan ritme kecepatan secara visual dan langsung tahu apakah ketikan mereka sedang unggul atau tertinggal dari target.
+- **Mode Fokus Otomatis Saat Mengetik Cepat (`app/page.tsx` & `components/Navbar.tsx`)**:
+  - Saat sesi sedang berjalan (`testState === 'running'`), elemen navigasi atas, pilihan mode, dan konten bawah otomatis meredup halus (`opacity-30 hover:opacity-100 transition-opacity`) agar mata pengguna 100% tertuju pada kotak kata. Begitu kursor mouse digerakkan atau tes selesai, tampilan kembali normal seketika.
 
-- [ ] Pengetikan langsung aktif saat membuka halaman dan menekan tombol keyboard.
-- [ ] Kata bergeser mulus ke atas saat pengguna mencapai akhir baris 1 menuju baris 2.
-- [ ] Spasi menyelesaikan kata; Backspace mengoreksi karakter aktif.
-- [ ] Live WPM dan akurasi tidak pernah menghasilkan `NaN` atau `Infinity`.
-- [ ] Timer 15s, 30s, 60s, 120s dan word mode berhenti tepat pada waktunya.
-- [ ] Titik-titik grafik direkam dari interval waktu nyata selama sesi berlangsung.
-- [ ] Perubahan tema (preset maupun kustom color picker) langsung diterapkan ke seluruh elemen antarmuka dan tersimpan di `localStorage`.
-- [ ] Efek suara keyboard mekanikal bekerja tanpa delay dan dapat di-mute kapan saja.
-- [ ] Riwayat tes tersimpan dan dapat dilihat kembali di panel riwayat.
-- [ ] Aplikasi lulus `compile_applet` tanpa error TypeScript maupun layout glitch.
+---
+
+## 5. Sistem Pengguna Online & Leaderboard Persisten (Cukup Username, Tanpa Login)
+- **Penyimpanan Server Persisten (`/app/api/leaderboard/route.ts`, `/app/api/presence/route.ts`, & `lib/serverStore.ts`)**:
+  - Menggunakan penyimpanan file JSON persisten di sisi server (lengkap dengan *atomic write* dan *in-memory cache*) sehingga data papan peringkat **tidak ter-reset saat halaman di-refresh** maupun saat dibuka dari tab/perangkat lain, serta langsung berjalan tanpa konfigurasi eksternal.
+- **Identitas Ringan Cukup Username (`components/OnlineLeaderboardPanel.tsx`)**:
+  - Pengguna cukup memasukkan `username` (disimpan juga di `localStorage` agar tidak perlu mengetik ulang saat refresh) dan dapat langsung menggantinya kapan saja.
+- **Indikator Pengguna Online & Status Mengetik Real-Time**:
+  - Sistem *heartbeat* ringan setiap beberapa detik yang mencatat daftar pengguna yang sedang aktif membuka KetikKilat, menampilkan status apakah mereka sedang **Siap / Melihat** atau **Sedang Mengetik (Live WPM & Durasi)**.
+- **Aturan Leaderboard & Validasi Anti-Cheat**:
+  - **Satu Rekor Terbaik per Username per Durasi**: Menyimpan skor tertinggi (`wpm`) untuk masing-masing username pada setiap kategori durasi (`30 Detik`, `60 Detik`, `120 Detik`). Jika pengguna yang sama mencetak WPM lebih tinggi, skornya diperbarui otomatis.
+  - **Filter Berdasarkan Durasi**: Tab filter cepat di Papan Peringkat untuk melihat Top Skor mode `60 Detik`, `30 Detik`, dan `120 Detik`.
+  - **Syarat Akurasi & Anti-Cheat**: Hanya menerima skor dengan **Akurasi minimal 85%**, memverifikasi kecocokan jumlah karakter benar dengan durasi & WPM di server, serta menolak skor tidak wajar (> 220 WPM atau rasio ketikan manipulatif).
