@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Volume2, VolumeX, Settings, History, Palette, RotateCcw, BookOpen, Keyboard } from 'lucide-react';
+import { Volume2, VolumeX, Settings, Palette, RotateCcw, Users } from 'lucide-react';
 import { UserSettings } from '@/types/typing';
 import { BrandLogo } from './BrandLogo';
 
@@ -16,6 +16,8 @@ interface NavbarProps {
   onOpenGuide: () => void;
   onRestartTest: () => void;
   testRunning: boolean;
+  onlineCount?: number;
+  typingCount?: number;
 }
 
 export function Navbar({
@@ -29,6 +31,8 @@ export function Navbar({
   onOpenGuide,
   onRestartTest,
   testRunning,
+  onlineCount = 1,
+  typingCount = 0,
 }: NavbarProps) {
   const toggleSound = () => {
     onUpdateSettings({
@@ -96,13 +100,33 @@ export function Navbar({
           </nav>
         </div>
 
-        {/* Right: Clean Controls */}
+        {/* Right: Online Indicator + Clean Controls */}
         <div className="flex items-center gap-1.5 text-xs">
+          {/* Top-Right Online Users Indicator */}
+          <div
+            className="h-8 px-2.5 flex items-center gap-1.5 rounded border font-medium whitespace-nowrap shrink-0"
+            style={{
+              backgroundColor: 'var(--bg-app)',
+              borderColor: 'var(--bg-border)',
+              color: 'var(--text-main)',
+            }}
+            title={
+              typingCount > 0
+                ? `${onlineCount} pengguna online (${typingCount} sedang mengetik)`
+                : `${onlineCount} pengguna sedang online`
+            }
+          >
+            <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+            <Users className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
+            <span className="font-mono tabular-nums font-bold">{onlineCount}</span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">Online</span>
+          </div>
+
           {testRunning && (
             <button
               onClick={onRestartTest}
               title="Restart (Tab + Enter)"
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded border text-xs font-medium transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 h-8 rounded border text-xs font-medium transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
               style={{
                 borderColor: 'var(--bg-border)',
                 color: 'var(--text-main)',

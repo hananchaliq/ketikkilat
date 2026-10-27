@@ -754,6 +754,8 @@ export default function TypingApp() {
           onOpenGuide={() => setIsGuideOpen(true)}
           onRestartTest={() => resetTest()}
           testRunning={testState === 'running'}
+          onlineCount={Math.max(1, onlineUsers.length)}
+          typingCount={onlineUsers.filter((u) => u.status === 'typing').length}
         />
       </div>
 
@@ -915,7 +917,7 @@ export default function TypingApp() {
           </div>
         )}
 
-        {/* Online Users & Persistent Leaderboard Section */}
+        {/* Persistent Leaderboard Section */}
         <div
           className={`transition-opacity duration-300 ${
             isFocusDimmed ? 'opacity-20 hover:opacity-100' : 'opacity-100'
@@ -924,7 +926,6 @@ export default function TypingApp() {
           <OnlineLeaderboardPanel
             username={username}
             onUpdateUsername={handleUpdateUsername}
-            onlineUsers={onlineUsers}
             leaderboard={leaderboard}
             selectedDuration={leaderboardDuration}
             onSelectDuration={(dur) => setLeaderboardDuration(dur)}

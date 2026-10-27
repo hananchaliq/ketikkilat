@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { LeaderboardEntry, OnlineUserPresence } from '@/lib/serverStore';
-import { Trophy, Users, Check, User, ShieldCheck, Gauge, RefreshCw, Edit3 } from 'lucide-react';
+import { LeaderboardEntry } from '@/lib/serverStore';
+import { Trophy, Check, User, ShieldCheck, Gauge, RefreshCw, Edit3 } from 'lucide-react';
 
 interface OnlineLeaderboardPanelProps {
   username: string;
   onUpdateUsername: (newName: string) => void;
-  onlineUsers: OnlineUserPresence[];
   leaderboard: LeaderboardEntry[];
   selectedDuration: number;
   onSelectDuration: (duration: number) => void;
@@ -21,7 +20,6 @@ interface OnlineLeaderboardPanelProps {
 export function OnlineLeaderboardPanel({
   username,
   onUpdateUsername,
-  onlineUsers,
   leaderboard,
   selectedDuration,
   onSelectDuration,
@@ -73,163 +71,8 @@ export function OnlineLeaderboardPanel({
     }
   };
 
-  const typingOnlineCount = onlineUsers.filter((u) => u.status === 'typing').length;
-
   return (
-    <section className="mt-6 space-y-4">
-      {/* Top Bar: Username Identity + Real-time Online Users Strip */}
-      <div
-        className="rounded-md border p-4 transition-colors"
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderColor: 'var(--bg-border)',
-        }}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b" style={{ borderColor: 'var(--bg-border)' }}>
-          {/* Left: Online Presence Counter & Status Summary */}
-          <div className="flex items-center gap-2.5">
-            <div
-              className="h-8 w-8 rounded flex items-center justify-center border shrink-0"
-              style={{
-                backgroundColor: 'var(--bg-app)',
-                borderColor: 'var(--bg-border)',
-                color: 'var(--color-accent)',
-              }}
-            >
-              <Users className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-main)]">
-                <span>{ Math.max(1, onlineUsers.length) } Pengguna Online</span>
-                <span aria-hidden="true" className="text-[var(--text-muted)]">·</span>
-                <span className="font-normal text-[var(--text-muted)]">
-                  {typingOnlineCount > 0
-                    ? `${typingOnlineCount} sedang mengetik sekarang`
-                    : 'Siap berlatih bersama'}
-                </span>
-              </div>
-              <p className="text-[11px] text-[var(--text-muted)]">
-                Masuk cukup dengan username tanpa login akun. Skor otomatis tercatat ke Leaderboard jika akurasi minimal 85%.
-              </p>
-            </div>
-          </div>
-
-          {/* Right: Quick Username Form (No Login Required) */}
-          <div className="flex items-center gap-2 shrink-0">
-            {!isEditingName && username ? (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-[var(--text-muted)]">Username:</span>
-                <span
-                  className="font-bold px-2.5 py-1 rounded border text-[var(--text-main)] font-mono"
-                  style={{
-                    backgroundColor: 'var(--bg-app)',
-                    borderColor: 'var(--bg-border)',
-                  }}
-                >
-                  {username}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDraftName(username);
-                    setIsEditingName(true);
-                  }}
-                  className="px-2.5 py-1 rounded border text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
-                  style={{ borderColor: 'var(--bg-border)' }}
-                >
-                  <Edit3 className="h-3 w-3" />
-                  <span>Ubah</span>
-                </button>
-                {savedToast && (
-                  <span className="text-green-700 dark:text-green-400 text-[11px] font-semibold flex items-center gap-0.5">
-                    <Check className="h-3.5 w-3.5" /> Tersimpan
-                  </span>
-                )}
-              </div>
-            ) : (
-              <form onSubmit={handleSaveName} className="flex items-center gap-1.5">
-                <div className="relative flex items-center">
-                  <User className="h-3.5 w-3.5 text-[var(--text-muted)] absolute left-2.5 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={draftName}
-                    onChange={(e) => setDraftName(e.target.value)}
-                    placeholder="Ketik username Anda..."
-                    maxLength={22}
-                    className="pl-7 pr-2.5 py-1 text-xs rounded border font-medium outline-none focus:ring-1 focus:ring-[var(--color-accent)] w-44 sm:w-48"
-                    style={{
-                      backgroundColor: 'var(--bg-app)',
-                      borderColor: 'var(--bg-border)',
-                      color: 'var(--text-main)',
-                    }}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={draftName.trim().length < 2}
-                  className="px-3 py-1 rounded text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 cursor-pointer whitespace-nowrap shrink-0"
-                  style={{ backgroundColor: 'var(--color-accent)' }}
-                >
-                  Simpan Username
-                </button>
-                {username && (
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingName(false)}
-                    className="px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                )}
-              </form>
-            )}
-          </div>
-        </div>
-
-        {/* Active Online Users List */}
-        <div className="pt-3 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold text-[var(--text-muted)] mr-1">
-            Aktivitas Langsung:
-          </span>
-          {onlineUsers.length === 0 ? (
-            <span className="text-[11px] text-[var(--text-muted)]">
-              Anda sedang online ({username || 'PengetikAnonim'}) · Siap mengetik
-            </span>
-          ) : (
-            onlineUsers.map((u) => {
-              const isMe = username && u.username.toLowerCase() === username.toLowerCase();
-              return (
-                <div
-                  key={u.clientId}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[11px] transition-colors"
-                  style={{
-                    backgroundColor: 'var(--bg-app)',
-                    borderColor: isMe ? 'var(--color-accent)' : 'var(--bg-border)',
-                  }}
-                >
-                  <span className="font-semibold text-[var(--text-main)]">
-                    {u.username}
-                    {isMe ? ' (Anda)' : ''}
-                  </span>
-                  <span aria-hidden="true" className="text-[var(--text-muted)]">·</span>
-                  {u.status === 'typing' ? (
-                    <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--color-accent)' }}>
-                      Mengetik {u.liveWpm} WPM ({u.duration}d)
-                    </span>
-                  ) : u.status === 'completed' && u.liveWpm > 0 ? (
-                    <span className="font-mono tabular-nums text-green-700 dark:text-green-400 font-medium">
-                      Selesai {u.liveWpm} WPM ({u.accuracy}%)
-                    </span>
-                  ) : (
-                    <span className="text-[var(--text-muted)]">Siap</span>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
+    <section className="mt-6 space-y-3">
       {/* Submission Feedback Banner (if any) */}
       {lastSubmissionMessage && (
         <div
@@ -253,7 +96,7 @@ export function OnlineLeaderboardPanel({
           borderColor: 'var(--bg-border)',
         }}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b" style={{ borderColor: 'var(--bg-border)' }}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b" style={{ borderColor: 'var(--bg-border)' }}>
           <div className="flex items-center gap-2.5">
             <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
             <div>
@@ -271,8 +114,78 @@ export function OnlineLeaderboardPanel({
             </div>
           </div>
 
-          {/* Duration Filter Tabs + Refresh Button */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Username Form (No Login Required) */}
+            {!isEditingName && username ? (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-[var(--text-muted)]">Username:</span>
+                <span
+                  className="font-bold px-2.5 py-1 rounded border text-[var(--text-main)] font-mono"
+                  style={{
+                    backgroundColor: 'var(--bg-app)',
+                    borderColor: 'var(--bg-border)',
+                  }}
+                >
+                  {username}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraftName(username);
+                    setIsEditingName(true);
+                  }}
+                  className="px-2 py-1 rounded border text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0"
+                  style={{ borderColor: 'var(--bg-border)' }}
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>Ubah</span>
+                </button>
+                {savedToast && (
+                  <span className="text-green-700 dark:text-green-400 text-[11px] font-semibold flex items-center gap-0.5">
+                    <Check className="h-3.5 w-3.5" /> Tersimpan
+                  </span>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSaveName} className="flex items-center gap-1.5">
+                <div className="relative flex items-center">
+                  <User className="h-3.5 w-3.5 text-[var(--text-muted)] absolute left-2.5 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    placeholder="Ketik username Anda..."
+                    maxLength={22}
+                    className="pl-7 pr-2.5 py-1 text-xs rounded border font-medium outline-none focus:ring-1 focus:ring-[var(--color-accent)] w-40 sm:w-44"
+                    style={{
+                      backgroundColor: 'var(--bg-app)',
+                      borderColor: 'var(--bg-border)',
+                      color: 'var(--text-main)',
+                    }}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={draftName.trim().length < 2}
+                  className="px-2.5 py-1 rounded text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 cursor-pointer whitespace-nowrap shrink-0"
+                  style={{ backgroundColor: 'var(--color-accent)' }}
+                >
+                  Simpan
+                </button>
+                {username && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingName(false)}
+                    className="px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                )}
+              </form>
+            )}
+
+            {/* Duration Filter Tabs + Refresh Button */}
+            <div className="flex items-center gap-1.5">
             <div
               className="flex items-center gap-1 p-1 rounded border"
               style={{
@@ -309,6 +222,7 @@ export function OnlineLeaderboardPanel({
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoadingLeaderboard ? 'animate-spin' : ''}`} />
             </button>
+            </div>
           </div>
         </div>
 
