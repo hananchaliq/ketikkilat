@@ -1,7 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-plex-mono), 'SF Mono', Consolas, monospace;
+  --font-display: var(--font-space-grotesk), var(--font-jakarta), system-ui, sans-serif;
+}
 
 :root {
   --bg-app: #f4f6f8;
@@ -14,8 +19,9 @@
   --color-error: #dc2626;
   --color-caret: #2563eb;
   --color-chart: #2563eb;
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Geist Mono', 'SF Mono', Consolas, monospace;
+  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-plex-mono), 'SF Mono', Consolas, monospace;
+  --font-display: var(--font-space-grotesk), var(--font-jakarta), system-ui, sans-serif;
 }
 
 body {
@@ -25,6 +31,20 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   transition: background-color 0.2s ease, color 0.2s ease;
   user-select: none;
+  overflow-x: hidden;
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Custom Scrollbar */

@@ -263,7 +263,7 @@ export function OnlineLeaderboardPanel({
                         backgroundColor: isCurrentUser ? 'rgba(37, 99, 235, 0.07)' : undefined,
                       }}
                     >
-                      <td className="py-2.5 px-2 font-mono tabular-nums font-bold">
+                      <td className="py-2.5 px-2 font-display tabular-nums font-bold">
                         {rank === 1 ? (
                           <span className="inline-flex items-center justify-center w-6 h-5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[11px]">
                             #1
@@ -283,24 +283,24 @@ export function OnlineLeaderboardPanel({
 
                       <td className="py-2.5 px-2 font-semibold text-[var(--text-main)]">
                         <div className="flex items-center gap-1.5">
-                          <span>{entry.username}</span>
+                          <span className="truncate max-w-[110px] sm:max-w-none">{entry.username}</span>
                           {isCurrentUser && (
-                            <span className="text-[10px] font-medium text-[var(--color-accent)]">
+                            <span className="text-[10px] font-medium text-[var(--color-accent)] shrink-0">
                               · Anda
                             </span>
                           )}
                         </div>
                       </td>
 
-                      <td className="py-2.5 px-2 text-right font-mono tabular-nums font-extrabold text-sm" style={{ color: 'var(--color-accent)' }}>
+                      <td className="py-2.5 px-2 text-right font-display tabular-nums font-bold text-sm whitespace-nowrap" style={{ color: 'var(--color-accent)' }}>
                         {entry.wpm} WPM
                       </td>
 
-                      <td className="py-2.5 px-2 text-right font-mono tabular-nums text-[var(--text-muted)] hidden sm:table-cell">
+                      <td className="py-2.5 px-2 text-right font-display tabular-nums text-[var(--text-muted)] hidden sm:table-cell whitespace-nowrap">
                         {entry.rawWpm} WPM
                       </td>
 
-                      <td className="py-2.5 px-2 text-right font-mono tabular-nums font-semibold text-green-700 dark:text-green-400">
+                      <td className="py-2.5 px-2 text-right font-display tabular-nums font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
                         {entry.accuracy}%
                       </td>
 

@@ -238,12 +238,12 @@ Uji kecepatan jari Anda di KetikKilat!`;
               <td className="py-2.5 text-[var(--text-muted)] font-medium">Hasil Kecepatan:</td>
               <td className="py-2.5 text-right">
                 <span
-                  className="font-sans text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums transition-all"
+                  className="font-display text-3xl sm:text-4xl font-bold tracking-tight tabular-nums transition-all"
                   style={{ color: 'var(--color-accent)' }}
                 >
                   {displayWpm} WPM
                 </span>
-                <span className="text-xs text-[var(--text-muted)] ml-1.5 font-normal">
+                <span className="text-xs text-[var(--text-muted)] ml-1.5 font-display tabular-nums">
                   (yaitu: {displayWpm * 5} CPM)
                 </span>
               </td>
@@ -253,8 +253,8 @@ Uji kecepatan jari Anda di KetikKilat!`;
             <tr className="border-b" style={{ borderColor: 'var(--bg-border)' }}>
               <td className="py-2 text-[var(--text-muted)] font-medium">Keystrokes:</td>
               <td className="py-2 text-right">
-                <span className="font-semibold text-[var(--text-main)] font-mono tabular-nums">{result.totalKeystrokes}</span>
-                <span className="text-[var(--text-muted)] ml-1 font-mono text-xs">
+                <span className="font-semibold text-[var(--text-main)] font-display tabular-nums">{result.totalKeystrokes}</span>
+                <span className="text-[var(--text-muted)] ml-1 font-display text-xs tabular-nums">
                   ({' '}
                   <span className="font-semibold text-green-700 dark:text-green-400 tabular-nums">
                     {result.correctChars}
@@ -271,7 +271,7 @@ Uji kecepatan jari Anda di KetikKilat!`;
             {/* Accuracy Row */}
             <tr className="border-b" style={{ borderColor: 'var(--bg-border)' }}>
               <td className="py-2 text-[var(--text-muted)] font-medium">Akurasi:</td>
-              <td className="py-2 text-right font-semibold text-[var(--text-main)] font-mono tabular-nums">
+              <td className="py-2 text-right font-semibold text-[var(--text-main)] font-display tabular-nums">
                 {result.accuracy}%
               </td>
             </tr>
@@ -279,15 +279,15 @@ Uji kecepatan jari Anda di KetikKilat!`;
             {/* Correct Words Row */}
             <tr className="border-b" style={{ borderColor: 'var(--bg-border)' }}>
               <td className="py-2 text-[var(--text-muted)] font-medium">Kata Benar:</td>
-              <td className="py-2 text-right font-bold text-green-700 dark:text-green-400 font-mono tabular-nums">
+              <td className="py-2 text-right font-bold text-green-700 dark:text-green-400 font-display tabular-nums">
                 {result.correctWords}
               </td>
             </tr>
 
-              {/* Wrong Words Row */}
+            {/* Wrong Words Row */}
             <tr>
               <td className="py-2 text-[var(--text-muted)] font-medium">Kata Salah:</td>
-              <td className="py-2 text-right font-bold text-red-600 dark:text-red-400 font-mono tabular-nums">
+              <td className="py-2 text-right font-bold text-red-600 dark:text-red-400 font-display tabular-nums">
                 {result.incorrectWords}
               </td>
             </tr>

@@ -1,7 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Volume2, VolumeX, Settings, Palette, RotateCcw, Users } from 'lucide-react';
+import {
+  Volume2,
+  VolumeX,
+  Settings,
+  Palette,
+  RotateCcw,
+  Users,
+  History,
+  BookOpen,
+} from 'lucide-react';
 import { UserSettings } from '@/types/typing';
 import { BrandLogo } from './BrandLogo';
 
@@ -49,12 +58,12 @@ export function Navbar({
         borderColor: 'var(--bg-border)',
       }}
     >
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-        {/* Left: 10FastFingers-inspired clean brand title */}
-        <div className="flex items-center gap-6">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 sm:gap-4 px-3.5 sm:px-6">
+        {/* Left: Brand Title + Desktop Navigation */}
+        <div className="flex items-center gap-4 lg:gap-6 min-w-0">
           <button
             onClick={() => setActiveTab('test')}
-            className="flex items-center gap-2 text-left cursor-pointer transition-opacity hover:opacity-90"
+            className="flex items-center gap-2 text-left cursor-pointer transition-opacity hover:opacity-90 shrink-0"
             title="KetikKilat Beranda"
           >
             <BrandLogo size={28} />
@@ -63,21 +72,21 @@ export function Navbar({
             </span>
           </button>
 
-          {/* Nav links */}
+          {/* Desktop Nav links */}
           <nav className="hidden md:flex items-center gap-1 text-xs font-medium">
             <button
               onClick={() => setActiveTab('test')}
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'test'
                   ? 'bg-[var(--bg-app)] text-[var(--color-accent)] font-semibold'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
               }`}
             >
-              Tes Kecepatan (1 Menit)
+              Tes Kecepatan
             </button>
             <button
               onClick={() => setActiveTab('practice')}
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'practice'
                   ? 'bg-[var(--bg-app)] text-[var(--color-accent)] font-semibold'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
@@ -87,24 +96,24 @@ export function Navbar({
             </button>
             <button
               onClick={onOpenHistory}
-              className="px-3 py-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer whitespace-nowrap"
             >
               Riwayat Skor
             </button>
             <button
               onClick={onOpenGuide}
-              className="px-3 py-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer whitespace-nowrap"
             >
               Panduan 10 Jari
             </button>
           </nav>
         </div>
 
-        {/* Right: Online Indicator + Clean Controls */}
-        <div className="flex items-center gap-1.5 text-xs">
+        {/* Right: Top-Right Online Users Indicator + Responsive Action Controls */}
+        <div className="flex items-center gap-1.5 text-xs shrink-0">
           {/* Top-Right Online Users Indicator */}
           <div
-            className="h-8 px-2.5 flex items-center gap-1.5 rounded border font-medium whitespace-nowrap shrink-0"
+            className="h-9 px-2.5 flex items-center gap-1.5 rounded-md border font-medium whitespace-nowrap shrink-0"
             style={{
               backgroundColor: 'var(--bg-app)',
               borderColor: 'var(--bg-border)',
@@ -118,43 +127,80 @@ export function Navbar({
           >
             <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
             <Users className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
-            <span className="font-mono tabular-nums font-bold">{onlineCount}</span>
-            <span className="text-[var(--text-muted)] hidden sm:inline">Online</span>
+            <span className="font-display tabular-nums font-bold">
+              {onlineCount}
+            </span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">
+              Online
+            </span>
           </div>
 
           {testRunning && (
             <button
               onClick={onRestartTest}
               title="Restart (Tab + Enter)"
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 h-8 rounded border text-xs font-medium transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+              className="hidden sm:flex items-center gap-1 px-2.5 h-9 rounded-md border text-xs font-medium transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
               style={{
                 borderColor: 'var(--bg-border)',
                 color: 'var(--text-main)',
               }}
             >
-              <RotateCcw className="h-3 w-3" />
+              <RotateCcw className="h-3.5 w-3.5" />
               <span>Reset</span>
             </button>
           )}
 
+          {/* Mobile Quick History & Guide Buttons */}
+          <button
+            onClick={onOpenHistory}
+            title="Riwayat Skor"
+            aria-label="Riwayat Skor"
+            className="md:hidden h-9 w-9 flex items-center justify-center rounded-md border text-[var(--text-main)] transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+            style={{ borderColor: 'var(--bg-border)' }}
+          >
+            <History className="h-4 w-4" />
+          </button>
+
+          <button
+            onClick={onOpenGuide}
+            title="Panduan 10 Jari"
+            aria-label="Panduan 10 Jari"
+            className="md:hidden h-9 w-9 flex items-center justify-center rounded-md border text-[var(--text-main)] transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+            style={{ borderColor: 'var(--bg-border)' }}
+          >
+            <BookOpen className="h-4 w-4" />
+          </button>
+
           {/* Sound Toggle */}
           <button
             onClick={toggleSound}
-            title={settings.soundEnabled ? `Suara Aktif (${settings.soundVolume}%)` : 'Suara Mati'}
-            className="h-8 w-8 flex items-center justify-center rounded border transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+            title={
+              settings.soundEnabled
+                ? `Suara Aktif (${settings.soundVolume}%)`
+                : 'Suara Mati'
+            }
+            aria-label="Pengaturan Suara"
+            className="h-9 w-9 flex items-center justify-center rounded-md border transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
             style={{
               borderColor: 'var(--bg-border)',
-              color: settings.soundEnabled ? 'var(--color-accent)' : 'var(--text-muted)',
+              color: settings.soundEnabled
+                ? 'var(--color-accent)'
+                : 'var(--text-muted)',
             }}
           >
-            {settings.soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            {settings.soundEnabled ? (
+              <Volume2 className="h-4 w-4" />
+            ) : (
+              <VolumeX className="h-4 w-4" />
+            )}
           </button>
 
           {/* Theme Switcher */}
           <button
             onClick={onOpenThemes}
             title="Ganti Tema & Warna"
-            className="h-8 w-8 flex items-center justify-center rounded border text-[var(--text-main)] transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+            aria-label="Ganti Tema"
+            className="h-9 w-9 flex items-center justify-center rounded-md border text-[var(--text-main)] transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
             style={{ borderColor: 'var(--bg-border)' }}
           >
             <Palette className="h-4 w-4" />
@@ -164,7 +210,8 @@ export function Navbar({
           <button
             onClick={onOpenSettings}
             title="Pengaturan"
-            className="h-8 w-8 flex items-center justify-center rounded border text-[var(--text-main)] transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
+            aria-label="Pengaturan"
+            className="h-9 w-9 flex items-center justify-center rounded-md border text-[var(--text-main)] transition-colors hover:bg-[var(--bg-app)] cursor-pointer"
             style={{ borderColor: 'var(--bg-border)' }}
           >
             <Settings className="h-4 w-4" />

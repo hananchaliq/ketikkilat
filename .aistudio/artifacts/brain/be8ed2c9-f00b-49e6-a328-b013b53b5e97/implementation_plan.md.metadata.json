@@ -1,6 +1,6 @@
 {
-  "summary":  "Rencana implementasi peningkatan KetikKilat: penghapusan efek glow (anti-AI-slop), pengguliran baris kata instan setelah baris pertama selesai, auto-focus otomatis saat mengetik huruf di mana saja, sistem Leaderboard persisten berbasis server dengan cukup input username + filter durasi & anti-cheat, indikator pengguna online real-time beserta status ketikan, fitur Pace Car (kursor bayangan target/rekor), serta Mode Fokus Otomatis.",
-  "updatedAt":  "2026-10-27T03:24:31.531763428Z",
+  "summary":  "Rencana implementasi untuk pembaruan KetikKilat: sistem ketik langsung (inline typing ala Monkeytype) tanpa kotak input bawah, sistem multi-font harmonis (IBM Plex Mono, Plus Jakarta Sans, Space Grotesk), tata letak responsif penuh untuk HP/Tablet/Desktop, serta optimasi performa PageSpeed Mobile.",
+  "updatedAt":  "2026-10-29T13:53:23.021367830Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

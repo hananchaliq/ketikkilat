@@ -760,18 +760,18 @@ export default function TypingApp() {
       </div>
 
       {/* Main Container */}
-      <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
+      <main className="flex-1 px-3.5 sm:px-6 py-4 sm:py-6 max-w-4xl mx-auto w-full">
         {/* Page Title & Subtitle */}
         <div
-          className={`mb-4 transition-opacity duration-300 ${
+          className={`mb-3.5 sm:mb-4 transition-opacity duration-300 ${
             isFocusDimmed ? 'opacity-25 hover:opacity-100' : 'opacity-100'
           }`}
         >
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-main)] font-sans">
+          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-[var(--text-main)] font-sans">
             Tes Mengetik Bahasa Indonesia
           </h1>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Uji dan tingkatkan kecepatan mengetik kata-kata Bahasa Indonesia (WPM) secara presisi.
+          <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">
+            Uji dan tingkatkan kecepatan mengetik kata-kata Bahasa Indonesia (WPM) secara langsung di dalam teks.
           </p>
         </div>
 
@@ -782,7 +782,7 @@ export default function TypingApp() {
               isFocusDimmed ? 'opacity-25 hover:opacity-100' : 'opacity-100'
             }`}
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-0.5">
               {[
                 { label: '60 Detik', dur: 60 },
                 { label: '30 Detik', dur: 30 },
@@ -799,7 +799,7 @@ export default function TypingApp() {
                     });
                     resetTest();
                   }}
-                  className={`px-3 py-1 rounded text-xs transition-colors cursor-pointer border whitespace-nowrap shrink-0 ${
+                  className={`h-8 px-3 rounded-md text-xs transition-colors cursor-pointer border whitespace-nowrap shrink-0 font-display tabular-nums ${
                     settings.mode === 'time' && settings.timeDuration === btn.dur
                       ? 'bg-[var(--color-accent)] text-white border-transparent font-semibold'
                       : 'border-[var(--bg-border)] text-[var(--text-muted)] hover:text-[var(--text-main)] bg-[var(--bg-surface)]'
@@ -809,7 +809,7 @@ export default function TypingApp() {
                 </button>
               ))}
 
-              <span className="text-[var(--bg-border)] px-1">|</span>
+              <span className="text-[var(--bg-border)] px-0.5">|</span>
 
               <button
                 type="button"
@@ -823,7 +823,7 @@ export default function TypingApp() {
                   handleUpdateSettings({ ...settings, difficulty: nextDiff });
                   resetTest();
                 }}
-                className="px-2.5 py-1 rounded text-xs border border-[var(--bg-border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer capitalize whitespace-nowrap shrink-0"
+                className="h-8 px-2.5 rounded-md text-xs border border-[var(--bg-border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer capitalize whitespace-nowrap shrink-0"
                 title="Beralih tingkat kosakata"
               >
                 Tingkat: <strong className="text-[var(--text-main)]">{settings.difficulty}</strong>
@@ -840,7 +840,7 @@ export default function TypingApp() {
               {personalBest > 0 && (
                 <span>
                   Rekor Terbaik:{' '}
-                  <strong className="text-[var(--color-accent)] font-mono tabular-nums">
+                  <strong className="text-[var(--color-accent)] font-display tabular-nums">
                     {personalBest} WPM
                   </strong>
                 </span>
@@ -941,7 +941,7 @@ export default function TypingApp() {
 
           {/* Authentic Content Below the Leaderboard */}
           <div className="mt-6 pt-6 border-t space-y-6 text-sm" style={{ borderColor: 'var(--bg-border)' }}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {/* Left: About Indonesian Typing Test */}
               <div
                 className="rounded-md border p-4 sm:p-5"
@@ -954,11 +954,11 @@ export default function TypingApp() {
                   Tentang Tes Mengetik KetikKilat
                 </h3>
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
-                  Tes ini mengukur seberapa banyak kata Bahasa Indonesia yang dapat Anda ketik secara tepat dan berirama. Baris kata otomatis bergulir setiap selesai satu baris, dan Anda dapat langsung mengetik huruf tanpa perlu mengklik kotak teks terlebih dahulu.
+                  Tes ini mengukur seberapa banyak kata Bahasa Indonesia yang dapat Anda ketik secara tepat dan berirama. Ketik langsung pada teks kata dengan kursor halus, dan baris kata otomatis bergulir setiap selesai satu baris.
                 </p>
                 <ul className="text-xs text-[var(--text-muted)] space-y-1.5 list-disc pl-4">
                   <li>
-                    <strong className="text-[var(--text-main)]">Auto-Focus Instan:</strong> Tekan huruf apa saja untuk langsung memulai.
+                    <strong className="text-[var(--text-main)]">Ketik Langsung (Inline):</strong> Ketik langsung di atas kata tanpa kotak teks terpisah.
                   </li>
                   <li>
                     <strong className="text-[var(--text-main)]">Spasi:</strong> Menyelesaikan kata dan lanjut ke kata berikutnya.
@@ -992,23 +992,23 @@ export default function TypingApp() {
                   </thead>
                   <tbody className="divide-y" style={{ borderColor: 'var(--bg-border)' }}>
                     <tr>
-                      <td className="py-1.5 font-medium font-mono tabular-nums">&lt; 25 WPM</td>
+                      <td className="py-1.5 font-semibold font-display tabular-nums">&lt; 25 WPM</td>
                       <td className="py-1.5 text-[var(--text-muted)]">Pemula / Lambat</td>
                     </tr>
                     <tr>
-                      <td className="py-1.5 font-medium font-mono tabular-nums">25 – 45 WPM</td>
+                      <td className="py-1.5 font-semibold font-display tabular-nums">25 – 45 WPM</td>
                       <td className="py-1.5 text-[var(--text-muted)]">Rata-rata Normal</td>
                     </tr>
                     <tr>
-                      <td className="py-1.5 font-medium font-mono tabular-nums">45 – 65 WPM</td>
+                      <td className="py-1.5 font-semibold font-display tabular-nums">45 – 65 WPM</td>
                       <td className="py-1.5 text-[var(--text-muted)]">Cepat &amp; Produktif</td>
                     </tr>
                     <tr>
-                      <td className="py-1.5 font-medium font-mono tabular-nums">65 – 85 WPM</td>
+                      <td className="py-1.5 font-semibold font-display tabular-nums">65 – 85 WPM</td>
                       <td className="py-1.5 text-[var(--text-muted)]">Sangat Cepat</td>
                     </tr>
                     <tr>
-                      <td className="py-1.5 font-medium font-mono tabular-nums font-bold text-green-700 dark:text-green-400">&gt; 85 WPM</td>
+                      <td className="py-1.5 font-bold font-display tabular-nums text-green-700 dark:text-green-400">&gt; 85 WPM</td>
                       <td className="py-1.5 text-green-700 dark:text-green-400 font-semibold">Master / Profesional</td>
                     </tr>
                   </tbody>

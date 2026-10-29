@@ -119,7 +119,7 @@ export function KeyboardVisualizer({
   };
 
   return (
-    <div className="w-full mt-4 select-none">
+    <div className="hidden md:block w-full mt-3 select-none">
       {/* Visualizer Header Toggle Bar */}
       <div className="flex items-center justify-between text-xs px-1 mb-2">
         <button

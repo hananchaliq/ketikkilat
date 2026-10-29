@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { TestState, TypingMode } from '@/types/typing';
-import { Gauge, Zap, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { Gauge, Zap, CheckCircle2 } from 'lucide-react';
 
 interface LiveStatsProps {
   state: TestState;
@@ -29,8 +29,9 @@ export function LiveStats({
   liveAccuracy,
   correctKeystrokes,
   incorrectKeystrokes,
+  showLiveWpm = true,
+  showLiveAccuracy = true,
 }: LiveStatsProps) {
-  // Speed tier badge label
   const getSpeedPaceLabel = (wpm: number) => {
     if (wpm >= 90) return { label: 'Kilat Dewa', color: 'text-amber-500 font-black' };
     if (wpm >= 70) return { label: 'Sangat Cepat', color: 'text-cyan-500 font-bold' };
@@ -44,36 +45,60 @@ export function LiveStats({
 
   return (
     <div className="w-full flex flex-col gap-1.5 mb-2 select-none">
-      <div className="flex items-center justify-between text-xs font-sans text-[var(--text-muted)] px-1">
-        <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-sans text-[var(--text-muted)] px-0.5">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {mode === 'words' ? (
             <span>
-              Target: <strong className="text-[var(--text-main)]">{wordsCompleted} / {targetWords} kata</strong>
+              Target:{' '}
+              <strong className="text-[var(--text-main)] font-display tabular-nums">
+                {wordsCompleted} / {targetWords}
+              </strong>{' '}
+              kata
             </span>
           ) : (
             <span>
-              Kata ke-<strong className="text-[var(--text-main)]">{wordsCompleted + 1}</strong>
+              Kata ke-
+              <strong className="text-[var(--text-main)] font-display tabular-nums">
+                {wordsCompleted + 1}
+              </strong>
             </span>
           )}
 
           {state === 'running' && (
             <>
-              <span>·</span>
-              <span className="flex items-center gap-1">
-                <Gauge className="h-3.5 w-3.5 text-[var(--color-accent)]" />
-                <strong className="text-[var(--color-accent)] font-mono text-sm tabular-nums">{liveWpm} WPM</strong>
-              </span>
-              <span>·</span>
-              <span>
-                <strong
-                  className="tabular-nums"
-                  style={{ color: liveAccuracy >= 90 ? 'var(--color-correct)' : 'var(--color-error)' }}
-                >
-                  {liveAccuracy}%
-                </strong>
-              </span>
+              {showLiveWpm && (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Gauge className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+                    <strong className="text-[var(--color-accent)] font-display text-sm tabular-nums">
+                      {liveWpm} WPM
+                    </strong>
+                  </span>
+                </>
+              )}
+              {showLiveAccuracy && (
+                <>
+                  <span>·</span>
+                  <span>
+                    <strong
+                      className="font-display tabular-nums"
+                      style={{
+                        color:
+                          liveAccuracy >= 90
+                            ? 'var(--color-correct)'
+                            : 'var(--color-error)',
+                      }}
+                    >
+                      {liveAccuracy}%
+                    </strong>
+                  </span>
+                </>
+              )}
               <span className="hidden sm:inline">·</span>
-              <span className={`hidden sm:inline-flex items-center gap-1 text-[11px] ${pace.color}`}>
+              <span
+                className={`hidden sm:inline-flex items-center gap-1 text-[11px] ${pace.color}`}
+              >
                 <Zap className="h-3 w-3" />
                 <span>{pace.label}</span>
               </span>
@@ -82,14 +107,24 @@ export function LiveStats({
         </div>
 
         {(correctKeystrokes > 0 || incorrectKeystrokes > 0) && (
-          <div className="font-mono text-[11px] tabular-nums flex items-center gap-1.5 bg-[var(--bg-surface)] px-2 py-0.5 rounded border border-[var(--bg-border)] shadow-2xs">
-            <span className="font-semibold flex items-center gap-0.5" style={{ color: 'var(--color-correct)' }}>
+          <div className="font-display text-[11px] tabular-nums flex items-center gap-1.5 bg-[var(--bg-surface)] px-2 py-0.5 rounded border border-[var(--bg-border)]">
+            <span
+              className="font-semibold flex items-center gap-0.5"
+              style={{ color: 'var(--color-correct)' }}
+            >
               <CheckCircle2 className="h-3 w-3 inline" />
               {correctKeystrokes}
             </span>
             <span className="text-[var(--text-muted)]">/</span>
-            <span className="font-semibold" style={{ color: 'var(--color-error)' }}>{incorrectKeystrokes}</span>
-            <span className="text-[var(--text-muted)] text-[10px]">tuts</span>
+            <span
+              className="font-semibold"
+              style={{ color: 'var(--color-error)' }}
+            >
+              {incorrectKeystrokes}
+            </span>
+            <span className="text-[var(--text-muted)] text-[10px] font-sans">
+              tuts
+            </span>
           </div>
         )}
       </div>
@@ -101,7 +136,12 @@ export function LiveStats({
             className="h-full transition-all duration-300 ease-out rounded-full"
             style={{
               width: `${Math.max(4, speedPercentage)}%`,
-              backgroundColor: liveWpm >= 85 ? '#d97706' : liveWpm >= 65 ? '#0284c7' : 'var(--color-accent)',
+              backgroundColor:
+                liveWpm >= 85
+                  ? '#d97706'
+                  : liveWpm >= 65
+                  ? '#0284c7'
+                  : 'var(--color-accent)',
             }}
           />
         </div>
