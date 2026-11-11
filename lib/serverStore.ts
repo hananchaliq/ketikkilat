@@ -124,10 +124,14 @@ const INITIAL_SEED_ENTRIES: LeaderboardEntry[] = [
   },
 ];
 
+type PresenceListener = (users: OnlineUserPresence[]) => void;
+
 // Global singleton in-memory cache so state stays consistent across Next.js hot reloads
 const globalForStore = globalThis as unknown as {
   __ketikKilatLeaderboard?: LeaderboardEntry[];
   __ketikKilatPresence?: Map<string, OnlineUserPresence>;
+  __ketikKilatPresenceListeners?: Set<PresenceListener>;
+  __ketikKilatLastSignature?: string;
   __ketikKilatStorePath?: string;
 };
 
@@ -337,14 +341,55 @@ export function submitLeaderboardScore(input: SubmitScoreInput): SubmitScoreResu
   };
 }
 
-// Online presence management (Active within last 35 seconds)
-const PRESENCE_TTL_MS = 35_000;
+// Online presence management (Active within last 10 seconds)
+const PRESENCE_TTL_MS = 10_000;
 
 function getPresenceMap(): Map<string, OnlineUserPresence> {
   if (!globalForStore.__ketikKilatPresence) {
     globalForStore.__ketikKilatPresence = new Map<string, OnlineUserPresence>();
   }
   return globalForStore.__ketikKilatPresence;
+}
+
+function getPresenceListeners(): Set<PresenceListener> {
+  if (!globalForStore.__ketikKilatPresenceListeners) {
+    globalForStore.__ketikKilatPresenceListeners = new Set<PresenceListener>();
+  }
+  return globalForStore.__ketikKilatPresenceListeners;
+}
+
+function sortAndFormatUsers(map: Map<string, OnlineUserPresence>): OnlineUserPresence[] {
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.status === 'typing' && b.status !== 'typing') return -1;
+    if (a.status !== 'typing' && b.status === 'typing') return 1;
+    return b.liveWpm - a.liveWpm;
+  });
+}
+
+function notifyPresenceListenersIfChanged(users: OnlineUserPresence[]): void {
+  const sig = users
+    .map((u) => `${u.clientId}:${u.status}:${u.username}:${u.liveWpm}`)
+    .join('|');
+  if (globalForStore.__ketikKilatLastSignature === sig) {
+    return;
+  }
+  globalForStore.__ketikKilatLastSignature = sig;
+  const listeners = getPresenceListeners();
+  for (const listener of listeners) {
+    try {
+      listener(users);
+    } catch {
+      // Ignore closed listener error
+    }
+  }
+}
+
+export function subscribePresence(listener: PresenceListener): () => void {
+  const listeners = getPresenceListeners();
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 export function updateOnlinePresence(input: {
@@ -384,11 +429,26 @@ export function updateOnlinePresence(input: {
     });
   }
 
-  return Array.from(map.values()).sort((a, b) => {
-    if (a.status === 'typing' && b.status !== 'typing') return -1;
-    if (a.status !== 'typing' && b.status === 'typing') return 1;
-    return b.liveWpm - a.liveWpm;
-  });
+  const users = sortAndFormatUsers(map);
+  notifyPresenceListenersIfChanged(users);
+  return users;
+}
+
+export function removeOnlinePresence(clientId: string): OnlineUserPresence[] {
+  const map = getPresenceMap();
+  const now = Date.now();
+  const cleanId = (clientId || '').trim().slice(0, 64);
+  if (cleanId) {
+    map.delete(cleanId);
+  }
+  for (const [key, value] of map.entries()) {
+    if (now - value.lastSeen > PRESENCE_TTL_MS) {
+      map.delete(key);
+    }
+  }
+  const users = sortAndFormatUsers(map);
+  notifyPresenceListenersIfChanged(users);
+  return users;
 }
 
 export function getOnlineUsers(): OnlineUserPresence[] {
@@ -399,9 +459,7 @@ export function getOnlineUsers(): OnlineUserPresence[] {
       map.delete(key);
     }
   }
-  return Array.from(map.values()).sort((a, b) => {
-    if (a.status === 'typing' && b.status !== 'typing') return -1;
-    if (a.status !== 'typing' && b.status === 'typing') return 1;
-    return b.liveWpm - a.liveWpm;
-  });
+  const users = sortAndFormatUsers(map);
+  notifyPresenceListenersIfChanged(users);
+  return users;
 }

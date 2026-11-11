@@ -99,7 +99,8 @@ export function getActiveTheme(settings: UserSettings): ThemeConfig {
 }
 
 const USERNAME_KEY = 'ketikkilat_username_v1';
-const CLIENT_ID_KEY = 'ketikkilat_client_id_v1';
+
+let activeTabClientId: string | null = null;
 
 export function loadUsername(): string {
   if (typeof window === 'undefined') return '';
@@ -121,15 +122,9 @@ export function saveUsername(username: string): void {
 
 export function getOrCreateClientId(): string {
   if (typeof window === 'undefined') return 'server';
-  try {
-    let existing = localStorage.getItem(CLIENT_ID_KEY);
-    if (!existing) {
-      existing = `kk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-      localStorage.setItem(CLIENT_ID_KEY, existing);
-    }
-    return existing;
-  } catch {
-    return `kk-anon-${Math.random().toString(36).slice(2, 8)}`;
+  if (!activeTabClientId) {
+    activeTabClientId = `kk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
   }
+  return activeTabClientId;
 }
 

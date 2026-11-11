@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Volume2,
   VolumeX,
@@ -43,6 +43,36 @@ export function Navbar({
   onlineCount = 1,
   typingCount = 0,
 }: NavbarProps) {
+  const [displayCount, setDisplayCount] = useState<number>(onlineCount);
+  const [outgoingCount, setOutgoingCount] = useState<number | null>(null);
+  const [animSequence, setAnimSequence] = useState<number>(0);
+  const [isPulsing, setIsPulsing] = useState<boolean>(false);
+  const prevCountRef = useRef<number>(onlineCount);
+
+  useEffect(() => {
+    if (onlineCount !== prevCountRef.current) {
+      const previous = prevCountRef.current;
+      prevCountRef.current = onlineCount;
+      setOutgoingCount(previous);
+      setDisplayCount(onlineCount);
+      setAnimSequence((s) => s + 1);
+      setIsPulsing(true);
+
+      const clearSlideTimer = setTimeout(() => {
+        setOutgoingCount(null);
+      }, 300);
+
+      const clearPulseTimer = setTimeout(() => {
+        setIsPulsing(false);
+      }, 650);
+
+      return () => {
+        clearTimeout(clearSlideTimer);
+        clearTimeout(clearPulseTimer);
+      };
+    }
+  }, [onlineCount]);
+
   const toggleSound = () => {
     onUpdateSettings({
       ...settings,
@@ -111,25 +141,61 @@ export function Navbar({
 
         {/* Right: Top-Right Online Users Indicator + Responsive Action Controls */}
         <div className="flex items-center gap-1.5 text-xs shrink-0">
-          {/* Top-Right Online Users Indicator */}
+          {/* Top-Right Online Users Real-Time Indicator with Bottom-to-Top Slide-Up Animation */}
           <div
-            className="h-9 px-2.5 flex items-center gap-1.5 rounded-md border font-medium whitespace-nowrap shrink-0"
+            className={`h-9 px-2.5 flex items-center gap-1.5 rounded-md border font-medium whitespace-nowrap shrink-0 transition-colors duration-300 ${
+              isPulsing
+                ? 'border-emerald-500/80 bg-emerald-500/10'
+                : ''
+            }`}
             style={{
-              backgroundColor: 'var(--bg-app)',
-              borderColor: 'var(--bg-border)',
+              backgroundColor: isPulsing ? undefined : 'var(--bg-app)',
+              borderColor: isPulsing ? undefined : 'var(--bg-border)',
               color: 'var(--text-main)',
             }}
             title={
               typingCount > 0
-                ? `${onlineCount} pengguna online (${typingCount} sedang mengetik)`
-                : `${onlineCount} pengguna sedang online`
+                ? `${displayCount} pengguna online (${typingCount} sedang mengetik secara real-time)`
+                : `${displayCount} pengguna sedang online secara real-time`
             }
           >
-            <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
-            <Users className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
-            <span className="font-display tabular-nums font-bold">
-              {onlineCount}
+            {/* Live Connection Dot with Green Pulse on Change */}
+            <span className="relative flex h-2 w-2 shrink-0">
+              {isPulsing && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-90" />
+              )}
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 transition-transform duration-200 ${
+                  isPulsing
+                    ? 'bg-emerald-400 scale-125'
+                    : 'bg-emerald-500'
+                }`}
+              />
             </span>
+
+            <Users className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
+
+            {/* Vertical Odometer Slide-Up Container (Bottom -> Top) */}
+            <span className="relative inline-flex items-center justify-center overflow-hidden h-5 min-w-[1ch] px-0.5 font-display tabular-nums font-bold">
+              {outgoingCount !== null && (
+                <span
+                  key={`out-${animSequence}`}
+                  aria-hidden="true"
+                  className="absolute inset-0 flex items-center justify-center animate-slide-up-out"
+                >
+                  {outgoingCount}
+                </span>
+              )}
+              <span
+                key={`in-${animSequence}`}
+                className={`inline-flex items-center justify-center ${
+                  outgoingCount !== null ? 'animate-slide-up-in text-emerald-600 dark:text-emerald-400' : ''
+                }`}
+              >
+                {displayCount}
+              </span>
+            </span>
+
             <span className="text-[var(--text-muted)] hidden sm:inline">
               Online
             </span>

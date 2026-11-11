@@ -1,6 +1,6 @@
 {
-  "summary":  "Rencana implementasi untuk pembaruan KetikKilat: sistem ketik langsung (inline typing ala Monkeytype) tanpa kotak input bawah, sistem multi-font harmonis (IBM Plex Mono, Plus Jakarta Sans, Space Grotesk), tata letak responsif penuh untuk HP/Tablet/Desktop, serta optimasi performa PageSpeed Mobile.",
-  "updatedAt":  "2026-10-29T13:53:23.021367830Z",
+  "summary":  "Rencana implementasi untuk pembaruan indikator pengguna online secara real-time per tab/jendela aktif (tanpa perlu refresh halaman) lengkap dengan animasi angka slide-up dari bawah ke atas (odometer roll-up) dan efek denyut hijau saat jumlah pengguna berubah.",
+  "updatedAt":  "2026-11-11T06:47:35.253091199Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

@@ -635,9 +635,11 @@ export default function TypingApp() {
       ? Math.round((correctKeystrokes / totalTypedKeystrokes) * 100)
       : 100;
 
-  // Real-Time Online Presence Heartbeat
+  // Real-Time Online Presence Heartbeat + SSE Push Stream + Cross-Tab Broadcast
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+
   const sendPresenceHeartbeat = useCallback(async () => {
-    if (!clientId) return;
+    if (!clientId || clientId === 'server') return;
     try {
       const statusPayload =
         testState === 'running'
@@ -649,6 +651,7 @@ export default function TypingApp() {
       const res = await fetch('/api/presence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify({
           clientId,
           username: username || 'PengetikAnonim',
@@ -662,6 +665,14 @@ export default function TypingApp() {
         const data = await res.json();
         if (Array.isArray(data.users)) {
           setOnlineUsers(data.users);
+          try {
+            broadcastChannelRef.current?.postMessage({
+              type: 'PRESENCE_SYNC',
+              users: data.users,
+            });
+          } catch {
+            // Ignore BroadcastChannel errors
+          }
         }
       }
     } catch {
@@ -669,15 +680,109 @@ export default function TypingApp() {
     }
   }, [clientId, username, testState, testResult, liveWpm, liveAccuracy, settings.timeDuration]);
 
+  // Trigger heartbeat at 2.5s interval and whenever status/username changes
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !clientId || clientId === 'server') return;
     const initTimer = setTimeout(sendPresenceHeartbeat, 0);
-    const interval = setInterval(sendPresenceHeartbeat, 6000);
+    const interval = setInterval(sendPresenceHeartbeat, 2500);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        sendPresenceHeartbeat();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       clearTimeout(initTimer);
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [isMounted, sendPresenceHeartbeat]);
+  }, [isMounted, clientId, sendPresenceHeartbeat]);
+
+  // Persistent Server-Sent Events (SSE) Stream + BroadcastChannel + Unload Leave Beacon
+  useEffect(() => {
+    if (!isMounted || !clientId || clientId === 'server') return;
+
+    // 1. Cross-tab instant sync via BroadcastChannel
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        bc = new BroadcastChannel('ketikkilat_presence_channel');
+        broadcastChannelRef.current = bc;
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'PRESENCE_SYNC' && Array.isArray(event.data.users)) {
+            setOnlineUsers(event.data.users);
+          }
+        };
+      } catch {
+        // Ignore if unsupported
+      }
+    }
+
+    // 2. Real-time Server-Sent Events (SSE) stream
+    let eventSource: EventSource | null = null;
+    let reconnectTimer: NodeJS.Timeout | null = null;
+
+    const connectSSE = () => {
+      try {
+        eventSource = new EventSource(
+          `/api/presence?stream=1&clientId=${encodeURIComponent(clientId)}`
+        );
+        eventSource.onmessage = (event) => {
+          try {
+            const parsed = JSON.parse(event.data);
+            if (Array.isArray(parsed.users)) {
+              setOnlineUsers(parsed.users);
+            }
+          } catch {
+            // Ignore malformed message
+          }
+        };
+        eventSource.onerror = () => {
+          eventSource?.close();
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connectSSE, 2000);
+        };
+      } catch {
+        // Fallback to fast polling already active
+      }
+    };
+
+    connectSSE();
+
+    // 3. Instant Leave Beacon when tab/window is closed or unloaded
+    const sendLeaveSignal = () => {
+      try {
+        const payload = JSON.stringify({ action: 'leave', clientId });
+        if (navigator.sendBeacon) {
+          const blob = new Blob([payload], { type: 'application/json' });
+          navigator.sendBeacon('/api/presence', blob);
+        } else {
+          fetch('/api/presence', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+            keepalive: true,
+          }).catch(() => {});
+        }
+      } catch {
+        // Ignore unload error
+      }
+    };
+
+    window.addEventListener('pagehide', sendLeaveSignal);
+    window.addEventListener('beforeunload', sendLeaveSignal);
+
+    return () => {
+      window.removeEventListener('pagehide', sendLeaveSignal);
+      window.removeEventListener('beforeunload', sendLeaveSignal);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      eventSource?.close();
+      bc?.close();
+      broadcastChannelRef.current = null;
+    };
+  }, [isMounted, clientId]);
 
   // Update Username Handler
   const handleUpdateUsername = (newName: string) => {
